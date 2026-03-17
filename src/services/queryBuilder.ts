@@ -83,6 +83,14 @@ function random(dbType: DatabaseType): string {
 }
 
 /**
+ * Casts a column to text. MySQL's CAST(x AS CHAR) returns full string,
+ * but PostgreSQL's CHAR without length truncates to 1 character.
+ */
+function castToText(dbType: DatabaseType, column: string): string {
+  return dbType === 'mysql' ? `CAST(${column} AS CHAR)` : `${column}::text`;
+}
+
+/**
  * Determine the {@link DatabaseType} from a raw `SELECT VERSION()` string.
  *
  * Falls back to `'mysql'` when the string is unrecognisable.
@@ -109,5 +117,6 @@ export const queryBuilder = {
   ageCalc,
   hourExtract,
   random,
+  castToText,
   detectDatabaseType,
 } as const;

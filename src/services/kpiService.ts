@@ -408,7 +408,7 @@ export async function getRecentVisits(
   const sql =
     `SELECT o.vn, o.hn, ` +
     `${queryBuilder.dateFormat(dbType, 'o.vstdate', '%Y-%m-%d')} as vstdate, ` +
-    `CAST(o.vsttime AS CHAR) as vsttime, ` +
+    `${queryBuilder.castToText(dbType, 'o.vsttime')} as vsttime, ` +
     `COALESCE(k.department, 'Unknown') as department_name, ` +
     `COALESCE(d.name, 'Unknown') as doctor_name ` +
     `FROM ovst o ` +

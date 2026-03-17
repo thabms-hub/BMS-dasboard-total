@@ -115,9 +115,9 @@ export default function Trends() {
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Visit Trends</h1>
+        <h1 className="text-2xl font-bold tracking-tight">แนวโน้มการเข้ารับบริการ</h1>
         <p className="text-sm text-muted-foreground">
-          Daily visit counts and hourly distribution drill-down
+          จำนวนการเข้ารับบริการรายวันและรายละเอียดรายชั่วโมง
         </p>
       </div>
 
@@ -133,7 +133,7 @@ export default function Trends() {
       {isDailyError && dailyError && (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4">
           <p className="text-sm text-destructive">
-            {dailyError.message || 'Failed to load visit trend data'}
+            {dailyError.message || 'ไม่สามารถโหลดข้อมูลแนวโน้มได้'}
           </p>
           <Button
             variant="outline"
@@ -141,7 +141,7 @@ export default function Trends() {
             className="mt-2"
             onClick={refetchDaily}
           >
-            Retry
+            ลองอีกครั้ง
           </Button>
         </div>
       )}
@@ -158,10 +158,10 @@ export default function Trends() {
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">
-              Hourly Distribution for {selectedDate}
+              การกระจายรายชั่วโมงสำหรับ {selectedDate}
             </h2>
             <Button variant="outline" size="sm" onClick={handleClearSelection}>
-              Clear selection
+              ล้างการเลือก
             </Button>
           </div>
           <HourlyChart

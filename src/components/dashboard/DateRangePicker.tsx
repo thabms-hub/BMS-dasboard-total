@@ -15,9 +15,9 @@ interface DateRangePickerProps {
 }
 
 const PRESETS = [
-  { label: '7 Days', days: 7 },
-  { label: '30 Days', days: 30 },
-  { label: '90 Days', days: 90 },
+  { label: '7 วัน', days: 7 },
+  { label: '30 วัน', days: 30 },
+  { label: '90 วัน', days: 90 },
 ] as const
 
 export function DateRangePicker({
@@ -94,7 +94,7 @@ export function DateRangePicker({
               htmlFor="start-date"
               className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
             >
-              From
+              จาก
             </label>
             <input
               id="start-date"
@@ -114,7 +114,7 @@ export function DateRangePicker({
               htmlFor="end-date"
               className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
             >
-              To
+              ถึง
             </label>
             <input
               id="end-date"

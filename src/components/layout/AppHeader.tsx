@@ -26,10 +26,10 @@ interface NavTab {
 }
 
 const NAV_TABS: NavTab[] = [
-  { label: 'Overview', path: '/', icon: LayoutDashboard },
-  { label: 'Trends', path: '/trends', icon: TrendingUp },
-  { label: 'Departments', path: '/departments', icon: Building2 },
-  { label: 'Demographics', path: '/demographics', icon: Users },
+  { label: 'ภาพรวม', path: '/', icon: LayoutDashboard },
+  { label: 'แนวโน้ม', path: '/trends', icon: TrendingUp },
+  { label: 'แผนก', path: '/departments', icon: Building2 },
+  { label: 'ข้อมูลประชากร', path: '/demographics', icon: Users },
 ];
 
 // ---------------------------------------------------------------------------
@@ -57,10 +57,10 @@ export function AppHeader() {
         </div>
         <div className="flex flex-col">
           <h1 className="text-base font-bold leading-tight tracking-tight text-white">
-            BMS Dashboard
+            แดชบอร์ด BMS
           </h1>
           <span className="text-[11px] leading-tight text-white/50">
-            Session Demo
+            สาธิตเซสชัน
           </span>
         </div>
       </div>
@@ -112,7 +112,7 @@ export function AppHeader() {
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
               </span>
               <span className="text-xs font-medium text-white/80">
-                Connected
+                เชื่อมต่อแล้ว
               </span>
             </div>
 
@@ -148,7 +148,7 @@ export function AppHeader() {
               className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-white/60 transition-colors duration-200 hover:bg-white/10 hover:text-white"
             >
               <LogOut className="h-4 w-4" />
-              Disconnect
+              ยกเลิกการเชื่อมต่อ
             </button>
           </>
         )}

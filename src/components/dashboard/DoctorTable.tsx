@@ -51,10 +51,10 @@ export function DoctorTable({ data, isLoading, className }: DoctorTableProps) {
                 #
               </TableHead>
               <TableHead className="uppercase text-xs tracking-wider text-muted-foreground">
-                Doctor Name
+                ชื่อแพทย์
               </TableHead>
               <TableHead className="text-right uppercase text-xs tracking-wider text-muted-foreground">
-                Patient Count
+                จำนวนผู้ป่วย
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -87,8 +87,8 @@ export function DoctorTable({ data, isLoading, className }: DoctorTableProps) {
       <div className={cn(className)}>
         <EmptyState
           icon={<Stethoscope className="h-8 w-8" />}
-          title="No doctor data found for this period"
-          description="Try selecting a different date range or department."
+          title="ไม่พบข้อมูลแพทย์ในช่วงเวลานี้"
+          description="ลองเลือกช่วงวันที่หรือแผนกอื่น"
         />
       </div>
     )
@@ -106,10 +106,10 @@ export function DoctorTable({ data, isLoading, className }: DoctorTableProps) {
               #
             </TableHead>
             <TableHead className="uppercase text-xs tracking-wider text-muted-foreground">
-              Doctor Name
+              ชื่อแพทย์
             </TableHead>
             <TableHead className="text-right uppercase text-xs tracking-wider text-muted-foreground">
-              Patient Count
+              จำนวนผู้ป่วย
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -158,7 +158,7 @@ export function DoctorTable({ data, isLoading, className }: DoctorTableProps) {
           {/* Total row */}
           <TableRow className="border-t-2">
             <TableCell />
-            <TableCell className="font-bold">Total</TableCell>
+            <TableCell className="font-bold">รวม</TableCell>
             <TableCell className="text-right font-bold">
               {totalPatients.toLocaleString()}
             </TableCell>

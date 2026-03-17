@@ -111,10 +111,10 @@ export default function Demographics() {
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Demographics &amp; Insurance
+          ข้อมูลประชากรและสิทธิ์การรักษา
         </h1>
         <p className="text-sm text-muted-foreground">
-          Patient demographics and insurance type distribution
+          ข้อมูลประชากรผู้ป่วยและการกระจายสิทธิ์การรักษา
         </p>
       </div>
 
@@ -130,7 +130,7 @@ export default function Demographics() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Gender Distribution</CardTitle>
+            <CardTitle>การกระจายเพศ</CardTitle>
           </CardHeader>
           <CardContent>
             <GenderChart
@@ -142,7 +142,7 @@ export default function Demographics() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Age Group Distribution</CardTitle>
+            <CardTitle>การกระจายกลุ่มอายุ</CardTitle>
           </CardHeader>
           <CardContent>
             <AgeGroupChart
@@ -156,7 +156,7 @@ export default function Demographics() {
       {/* Full-width: Patient type / insurance distribution */}
       <Card>
         <CardHeader>
-          <CardTitle>Insurance Distribution</CardTitle>
+          <CardTitle>การกระจายสิทธิ์การรักษา</CardTitle>
         </CardHeader>
         <CardContent>
           <PatientTypeChart

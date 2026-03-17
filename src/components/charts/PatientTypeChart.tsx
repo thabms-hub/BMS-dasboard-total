@@ -51,10 +51,10 @@ function CustomTooltip({
     <div className="rounded-lg border bg-background p-3 shadow-sm">
       <p className="text-sm font-medium">{entry.payload.name}</p>
       <p className="text-xs text-muted-foreground">
-        Code: {entry.payload.code}
+        รหัส: {entry.payload.code}
       </p>
       <p className="text-sm text-muted-foreground">
-        Visits: {entry.value.toLocaleString()}
+        จำนวนครั้ง: {entry.value.toLocaleString()}
       </p>
     </div>
   )
@@ -78,7 +78,7 @@ export function PatientTypeChart({
   }
 
   if (!data || data.length === 0) {
-    return <EmptyState title="No patient type data available" />
+    return <EmptyState title="ไม่มีข้อมูลสิทธิ์การรักษา" />
   }
 
   // Map to chart-friendly shape

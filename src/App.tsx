@@ -12,7 +12,7 @@ const Demographics = lazy(() => import('@/pages/Demographics'))
 
 function AppRoutes() {
   return (
-    <Suspense fallback={<LoadingSpinner size="lg" message="Loading page..." className="min-h-[50vh]" />}>
+    <Suspense fallback={<LoadingSpinner size="lg" message="กำลังโหลดหน้า..." className="min-h-[50vh]" />}>
       <Routes>
         <Route path="/" element={<Overview />} />
         <Route path="/trends" element={<Trends />} />

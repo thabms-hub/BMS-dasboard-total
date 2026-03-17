@@ -49,7 +49,7 @@ export function VisitTrendChart({
     return (
       <Card className={cn(className)}>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Daily Visit Trend</CardTitle>
+          <CardTitle className="text-sm font-medium">แนวโน้มการเข้ารับบริการรายวัน</CardTitle>
         </CardHeader>
         <CardContent>
           <Skeleton className="h-[350px] w-full" />
@@ -65,10 +65,10 @@ export function VisitTrendChart({
     return (
       <Card className={cn(className)}>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Daily Visit Trend</CardTitle>
+          <CardTitle className="text-sm font-medium">แนวโน้มการเข้ารับบริการรายวัน</CardTitle>
         </CardHeader>
         <CardContent>
-          <EmptyState title="No visit data available" />
+          <EmptyState title="ไม่มีข้อมูลการเข้ารับบริการ" />
         </CardContent>
       </Card>
     )
@@ -80,7 +80,7 @@ export function VisitTrendChart({
   return (
     <Card className={cn(className)}>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">Daily Visit Trend</CardTitle>
+        <CardTitle className="text-sm font-medium">แนวโน้มการเข้ารับบริการรายวัน</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
@@ -110,7 +110,7 @@ export function VisitTrendChart({
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             <Tooltip
               labelFormatter={((label: unknown) => formatDateLabel(String(label))) as any}
-              formatter={((value: unknown) => [Number(value).toLocaleString(), 'Visits']) as any}
+              formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as any}
               contentStyle={{
                 borderRadius: '8px',
                 border: '1px solid hsl(var(--border))',

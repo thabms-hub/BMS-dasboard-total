@@ -21,16 +21,16 @@ export function LoginForm({ onConnect, error, isConnecting }: LoginFormProps) {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground">BMS Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">แดชบอร์ด BMS</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Enter your BMS Session ID to connect to the hospital database
+            ป้อนรหัสเซสชัน BMS เพื่อเชื่อมต่อกับฐานข้อมูลโรงพยาบาล
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="session-id" className="block text-sm font-medium text-foreground mb-1">
-              Session ID
+              รหัสเซสชัน
             </label>
             <input
               id="session-id"
@@ -55,15 +55,15 @@ export function LoginForm({ onConnect, error, isConnecting }: LoginFormProps) {
             className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
             {isConnecting ? (
-              <LoadingSpinner size="sm" message="Connecting..." />
+              <LoadingSpinner size="sm" message="กำลังเชื่อมต่อ..." />
             ) : (
-              'Connect'
+              'เชื่อมต่อ'
             )}
           </button>
         </form>
 
         <p className="text-center text-xs text-muted-foreground">
-          The session ID is provided via your HOSxP system URL or administrator.
+          รหัสเซสชันได้รับจาก URL ของระบบ HOSxP หรือผู้ดูแลระบบ
         </p>
       </div>
     </div>

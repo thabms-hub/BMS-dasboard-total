@@ -135,9 +135,9 @@ export default function DepartmentAnalytics() {
     <div className="flex flex-col gap-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Department Analytics</h1>
+        <h1 className="text-2xl font-bold tracking-tight">การวิเคราะห์แผนก</h1>
         <p className="text-sm text-muted-foreground">
-          Visit breakdown by department and doctor workload
+          รายละเอียดการเข้ารับบริการแยกตามแผนกและปริมาณงานแพทย์
         </p>
       </div>
 
@@ -166,12 +166,12 @@ export default function DepartmentAnalytics() {
                 {selectedDepartmentName}
               </CardTitle>
               <Button variant="outline" size="sm" onClick={handleClearSelection}>
-                Clear
+                ล้าง
               </Button>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Showing doctor workload and daily trend for the selected department.
+                แสดงปริมาณงานแพทย์และแนวโน้มรายวันสำหรับแผนกที่เลือก
               </p>
             </CardContent>
           </Card>
@@ -180,7 +180,7 @@ export default function DepartmentAnalytics() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Doctor Workload</CardTitle>
+                <CardTitle className="text-sm font-medium">ปริมาณงานแพทย์</CardTitle>
               </CardHeader>
               <CardContent>
                 <DoctorTable

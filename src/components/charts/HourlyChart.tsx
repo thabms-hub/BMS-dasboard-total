@@ -46,8 +46,8 @@ export function HourlyChart({
         <CardHeader>
           <CardTitle className="text-sm font-medium">
             {selectedDate
-              ? `Hourly Distribution for ${selectedDate}`
-              : 'Hourly Distribution'}
+              ? `การกระจายรายชั่วโมงสำหรับ ${selectedDate}`
+              : 'การกระจายรายชั่วโมง'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -66,12 +66,12 @@ export function HourlyChart({
         <CardHeader>
           <CardTitle className="text-sm font-medium">
             {selectedDate
-              ? `Hourly Distribution for ${selectedDate}`
-              : 'Hourly Distribution'}
+              ? `การกระจายรายชั่วโมงสำหรับ ${selectedDate}`
+              : 'การกระจายรายชั่วโมง'}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <EmptyState title="No hourly data for this date" />
+          <EmptyState title="ไม่มีข้อมูลรายชั่วโมงสำหรับวันที่นี้" />
         </CardContent>
       </Card>
     )
@@ -108,7 +108,7 @@ export function HourlyChart({
             />
             <Tooltip
               labelFormatter={((hour: unknown) => formatHourLabel(Number(hour))) as never}
-              formatter={((value: unknown) => [Number(value).toLocaleString(), 'Visits']) as never}
+              formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
               contentStyle={{
                 borderRadius: '8px',
                 border: '1px solid hsl(var(--border))',

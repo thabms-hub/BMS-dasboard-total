@@ -36,12 +36,12 @@ interface AgeGroupChartProps {
 // ---------------------------------------------------------------------------
 
 const AGE_GROUP_ORDER = [
-  'Infant',
-  'Child',
-  'Teenager',
-  'Young Adult',
-  'Middle Age',
-  'Senior',
+  'ทารก',
+  'เด็ก',
+  'วัยรุ่น',
+  'วัยหนุ่มสาว',
+  'วัยกลางคน',
+  'ผู้สูงอายุ',
 ]
 
 // ---------------------------------------------------------------------------
@@ -68,7 +68,7 @@ function CustomTooltip({
     <div className="rounded-lg border bg-background p-3 shadow-sm">
       <p className="text-sm font-medium">{entry.payload.group}</p>
       <p className="text-sm text-muted-foreground">
-        Count: {entry.value.toLocaleString()}
+        จำนวน: {entry.value.toLocaleString()}
       </p>
     </div>
   )
@@ -92,7 +92,7 @@ export function AgeGroupChart({
   }
 
   if (!data || data.length === 0) {
-    return <EmptyState title="No age group data available" />
+    return <EmptyState title="ไม่มีข้อมูลกลุ่มอายุ" />
   }
 
   // Sort according to the canonical age-group order

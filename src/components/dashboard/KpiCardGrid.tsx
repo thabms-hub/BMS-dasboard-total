@@ -31,50 +31,50 @@ export function KpiCardGrid() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KpiCard
-        title="OPD Visits"
+        title="ผู้ป่วยนอก (OPD)"
         value={kpiSummary?.opdVisitCount ?? null}
         icon={<Activity className="h-5 w-5" />}
         isLoading={isLoading}
         isError={isError}
         error={error?.message}
         onRetry={execute}
-        description="Today's outpatient visits"
+        description="จำนวนผู้ป่วยนอกวันนี้"
         accentColor="text-blue-500"
         trend={{ value: 12, isPositive: true }}
       />
       <KpiCard
-        title="IPD Patients"
+        title="ผู้ป่วยใน (IPD)"
         value={kpiSummary?.ipdPatientCount ?? null}
         icon={<BedDouble className="h-5 w-5" />}
         isLoading={isLoading}
         isError={isError}
         error={error?.message}
         onRetry={execute}
-        description="Current inpatient count"
+        description="จำนวนผู้ป่วยในปัจจุบัน"
         accentColor="text-purple-500"
         trend={{ value: 3, isPositive: true }}
       />
       <KpiCard
-        title="ER Visits"
+        title="ห้องฉุกเฉิน (ER)"
         value={kpiSummary?.erVisitCount ?? null}
         icon={<Siren className="h-5 w-5" />}
         isLoading={isLoading}
         isError={isError}
         error={error?.message}
         onRetry={execute}
-        description="Today's emergency visits"
+        description="จำนวนเข้ารับบริการฉุกเฉินวันนี้"
         accentColor="text-red-500"
         trend={{ value: 5, isPositive: false }}
       />
       <KpiCard
-        title="Active Departments"
+        title="แผนกที่มีบริการ"
         value={kpiSummary?.activeDepartmentCount ?? null}
         icon={<Building2 className="h-5 w-5" />}
         isLoading={isLoading}
         isError={isError}
         error={error?.message}
         onRetry={execute}
-        description="Departments with activity today"
+        description="จำนวนแผนกที่มีผู้ป่วยวันนี้"
         accentColor="text-green-500"
         trend={{ value: 8, isPositive: true }}
       />

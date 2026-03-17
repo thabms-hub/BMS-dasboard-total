@@ -162,32 +162,32 @@ export default function Overview() {
   const miniStats = useMemo(
     () => [
       {
-        label: 'Total Patients',
+        label: 'ผู้ป่วยทั้งหมด',
         value: overviewStats?.totalRegisteredPatients,
         icon: <Users className="h-4 w-4" />,
       },
       {
-        label: 'Visits This Month',
+        label: 'เข้ารับบริการเดือนนี้',
         value: overviewStats?.totalVisitsThisMonth,
         icon: <CalendarCheck className="h-4 w-4" />,
       },
       {
-        label: 'Visits Last Month',
+        label: 'เข้ารับบริการเดือนที่แล้ว',
         value: overviewStats?.totalVisitsLastMonth,
         icon: <CalendarMinus className="h-4 w-4" />,
       },
       {
-        label: 'Avg Daily Visits',
+        label: 'เฉลี่ยต่อวัน',
         value: overviewStats?.avgDailyVisitsThisMonth,
         icon: <BarChart3 className="h-4 w-4" />,
       },
       {
-        label: 'Active Doctors',
+        label: 'แพทย์ทั้งหมด',
         value: overviewStats?.totalDoctors,
         icon: <Stethoscope className="h-4 w-4" />,
       },
       {
-        label: 'Total Departments',
+        label: 'แผนกทั้งหมด',
         value: overviewStats?.totalDepartments,
         icon: <Building2 className="h-4 w-4" />,
       },
@@ -206,7 +206,7 @@ export default function Overview() {
     ? [
         {
           icon: <Database className="h-4 w-4" />,
-          label: 'Database Type',
+          label: 'ประเภทฐานข้อมูล',
           value: (
             <Badge variant="secondary" className="font-mono text-xs">
               {session.databaseType.toUpperCase()}
@@ -215,22 +215,22 @@ export default function Overview() {
         },
         {
           icon: <Server className="h-4 w-4" />,
-          label: 'Database Name',
+          label: 'ชื่อฐานข้อมูล',
           value: session.databaseName || 'N/A',
         },
         {
           icon: <Clock className="h-4 w-4" />,
-          label: 'Session Expiry',
-          value: `Expires in ${formatExpiryDays(session.expirySeconds)}`,
+          label: 'วันหมดอายุเซสชัน',
+          value: `หมดอายุใน ${formatExpiryDays(session.expirySeconds)}`,
         },
         {
           icon: <User className="h-4 w-4" />,
-          label: 'User / Role',
+          label: 'ผู้ใช้ / บทบาท',
           value: `${session.userInfo.name} (${session.userInfo.position})`,
         },
         {
           icon: <Building className="h-4 w-4" />,
-          label: 'Hospital Code',
+          label: 'รหัสโรงพยาบาล',
           value: (
             <span className="font-mono text-sm">
               {session.userInfo.hospitalCode || 'N/A'}
@@ -239,12 +239,12 @@ export default function Overview() {
         },
         {
           icon: <Shield className="h-4 w-4" />,
-          label: 'System Version',
+          label: 'เวอร์ชันระบบ',
           value: session.systemInfo.version || 'N/A',
         },
         {
           icon: <Globe className="h-4 w-4" />,
-          label: 'Environment',
+          label: 'สภาพแวดล้อม',
           value: (
             <Badge
               variant={
@@ -272,7 +272,7 @@ export default function Overview() {
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Dashboard Overview
+            ภาพรวมแดชบอร์ด
           </h1>
           <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -282,7 +282,7 @@ export default function Overview() {
             <span className="text-muted-foreground/40">|</span>
             <span className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
-              Last updated {formatDateTime(lastUpdated)}
+              อัปเดตล่าสุด {formatDateTime(lastUpdated)}
             </span>
           </div>
         </div>
@@ -296,7 +296,7 @@ export default function Overview() {
           <RefreshCw
             className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')}
           />
-          Refresh
+          รีเฟรช
         </Button>
       </div>
 
@@ -335,11 +335,11 @@ export default function Overview() {
         {/* Left: Weekly Visit Trend (3/5 width) */}
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-lg">This Week's Visits</CardTitle>
+            <CardTitle className="text-lg">การเข้ารับบริการสัปดาห์นี้</CardTitle>
             <CardDescription>
               {isTrendLoading
-                ? 'Loading trend data...'
-                : `${weeklyTotal.toLocaleString()} total visits in the last 7 days`}
+                ? 'กำลังโหลดข้อมูลแนวโน้ม...'
+                : `${weeklyTotal.toLocaleString()} จำนวนการเข้ารับบริการใน 7 วันที่ผ่านมา`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -369,7 +369,7 @@ export default function Overview() {
                     tickLine={false}
                   />
                   <Tooltip
-                    formatter={((value: unknown) => [Number(value).toLocaleString(), 'Visits']) as never}
+                    formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
                     labelFormatter={((label: unknown) => `Date: ${String(label)}`) as never}
                     contentStyle={{
                       borderRadius: '8px',
@@ -388,7 +388,7 @@ export default function Overview() {
               </ResponsiveContainer>
             ) : (
               <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
-                No visit data for the last 7 days
+                ไม่มีข้อมูลการเข้ารับบริการใน 7 วันที่ผ่านมา
               </div>
             )}
           </CardContent>
@@ -397,8 +397,8 @@ export default function Overview() {
         {/* Right: Top Doctors This Month (2/5 width) */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">Top Doctors This Month</CardTitle>
-            <CardDescription>Ranked by patient count</CardDescription>
+            <CardTitle className="text-lg">แพทย์ยอดนิยมในเดือนนี้</CardTitle>
+            <CardDescription>เรียงตามจำนวนผู้ป่วย</CardDescription>
           </CardHeader>
           <CardContent>
             {isDoctorsLoading ? (
@@ -432,7 +432,7 @@ export default function Overview() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No doctor activity this month
+                ไม่มีกิจกรรมของแพทย์ในเดือนนี้
               </p>
             )}
           </CardContent>
@@ -446,9 +446,9 @@ export default function Overview() {
         {/* Left: Department Workload (2/3 width) */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">Department Workload</CardTitle>
+            <CardTitle className="text-lg">ปริมาณงานแผนก</CardTitle>
             <CardDescription>
-              Today's visit distribution by department
+              สัดส่วนการเข้ารับบริการวันนี้แยกตามแผนก
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -459,8 +459,8 @@ export default function Overview() {
         {/* Right: Recent Visits (1/3 width) */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Recent Visits</CardTitle>
-            <CardDescription>Last 10 recorded visits</CardDescription>
+            <CardTitle className="text-lg">การเข้ารับบริการล่าสุด</CardTitle>
+            <CardDescription>10 รายการล่าสุดที่บันทึก</CardDescription>
           </CardHeader>
           <CardContent>
             {isVisitsLoading ? (
@@ -501,7 +501,7 @@ export default function Overview() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No recent visits recorded
+                ไม่มีการเข้ารับบริการล่าสุดที่บันทึก
               </p>
             )}
           </CardContent>
@@ -515,8 +515,8 @@ export default function Overview() {
         {/* Session Info Card */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">Session Info</CardTitle>
-            <CardDescription>Active connection details</CardDescription>
+            <CardTitle className="text-lg">ข้อมูลเซสชัน</CardTitle>
+            <CardDescription>รายละเอียดการเชื่อมต่อ</CardDescription>
           </CardHeader>
           <CardContent>
             {session ? (
@@ -539,7 +539,7 @@ export default function Overview() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No active session. Connect with a session ID to view details.
+                ไม่มีเซสชัน กรุณาเชื่อมต่อด้วยรหัสเซสชันเพื่อดูรายละเอียด
               </p>
             )}
           </CardContent>
@@ -556,7 +556,7 @@ export default function Overview() {
             </span>
             <span className="flex items-center gap-1.5">
               <Clock className="h-3 w-3" />
-              Connected: {formatDateTime(session.connectedAt)}
+              เชื่อมต่อเมื่อ: {formatDateTime(session.connectedAt)}
             </span>
             <span className="flex items-center gap-1.5">
               <Database className="h-3 w-3" />

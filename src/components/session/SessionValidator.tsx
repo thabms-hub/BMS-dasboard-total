@@ -14,7 +14,7 @@ export function SessionValidator({ children }: SessionValidatorProps) {
   if (sessionState === 'connecting') {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner size="lg" message="Connecting to BMS session..." />
+        <LoadingSpinner size="lg" message="กำลังเชื่อมต่อเซสชัน BMS..." />
       </div>
     )
   }

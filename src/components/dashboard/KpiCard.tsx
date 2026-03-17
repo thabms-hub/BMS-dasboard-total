@@ -98,7 +98,7 @@ export function KpiCard({
               </p>
               <div className="mt-2 flex items-center gap-1.5 text-destructive">
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                <p className="text-sm">{error ?? 'Failed to load data'}</p>
+                <p className="text-sm">{error ?? 'ไม่สามารถโหลดข้อมูลได้'}</p>
               </div>
               {onRetry && (
                 <Button
@@ -108,7 +108,7 @@ export function KpiCard({
                   onClick={onRetry}
                 >
                   <RotateCcw className="h-3 w-3" />
-                  Retry
+                  ลองอีกครั้ง
                 </Button>
               )}
             </div>

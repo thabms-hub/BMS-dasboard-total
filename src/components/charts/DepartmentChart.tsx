@@ -45,7 +45,7 @@ export function DepartmentChart({
     return (
       <Card className={cn(className)}>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Department Visit Breakdown</CardTitle>
+          <CardTitle className="text-sm font-medium">รายละเอียดการเข้ารับบริการแยกตามแผนก</CardTitle>
         </CardHeader>
         <CardContent>
           <Skeleton className="h-[300px] w-full" />
@@ -61,10 +61,10 @@ export function DepartmentChart({
     return (
       <Card className={cn(className)}>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Department Visit Breakdown</CardTitle>
+          <CardTitle className="text-sm font-medium">รายละเอียดการเข้ารับบริการแยกตามแผนก</CardTitle>
         </CardHeader>
         <CardContent>
-          <EmptyState title="No department data available" />
+          <EmptyState title="ไม่มีข้อมูลแผนก" />
         </CardContent>
       </Card>
     )
@@ -78,7 +78,7 @@ export function DepartmentChart({
   return (
     <Card className={cn(className)}>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">Department Visit Breakdown</CardTitle>
+        <CardTitle className="text-sm font-medium">รายละเอียดการเข้ารับบริการแยกตามแผนก</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={chartHeight}>
@@ -111,7 +111,7 @@ export function DepartmentChart({
               tickFormatter={(value: string) => truncateName(value)}
             />
             <Tooltip
-              formatter={((value: unknown) => [Number(value).toLocaleString(), 'Visits']) as never}
+              formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
               contentStyle={{
                 borderRadius: '8px',
                 border: '1px solid hsl(var(--border))',

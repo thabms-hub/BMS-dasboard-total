@@ -37,17 +37,17 @@ interface GenderChartProps {
 // ---------------------------------------------------------------------------
 
 const GENDER_LABELS: Record<string, string> = {
-  '1': 'Male',
-  '2': 'Female',
-  M: 'Male',
-  F: 'Female',
-  male: 'Male',
-  female: 'Female',
+  '1': 'ชาย',
+  '2': 'หญิง',
+  M: 'ชาย',
+  F: 'หญิง',
+  male: 'ชาย',
+  female: 'หญิง',
 }
 
 const GENDER_COLORS: Record<string, string> = {
-  Male: 'hsl(var(--chart-1))',
-  Female: 'hsl(var(--chart-2))',
+  ชาย: 'hsl(var(--chart-1))',
+  หญิง: 'hsl(var(--chart-2))',
 }
 
 const DEFAULT_COLOR = 'hsl(var(--chart-4))'
@@ -57,7 +57,7 @@ const DEFAULT_COLOR = 'hsl(var(--chart-4))'
 // ---------------------------------------------------------------------------
 
 function normaliseGenderLabel(raw: string): string {
-  return GENDER_LABELS[raw] ?? GENDER_LABELS[raw.toLowerCase()] ?? (raw || 'Other')
+  return GENDER_LABELS[raw] ?? GENDER_LABELS[raw.toLowerCase()] ?? (raw || 'อื่น ๆ')
 }
 
 function getGenderColor(label: string): string {
@@ -88,7 +88,7 @@ function CustomTooltip({
     <div className="rounded-lg border bg-background p-3 shadow-sm">
       <p className="text-sm font-medium">{entry.payload.name}</p>
       <p className="text-sm text-muted-foreground">
-        Count: {entry.value.toLocaleString()}
+        จำนวน: {entry.value.toLocaleString()}
       </p>
       <p className="text-sm text-muted-foreground">
         {entry.payload.percentage.toFixed(1)}%
@@ -111,7 +111,7 @@ export function GenderChart({ data, isLoading, className }: GenderChartProps) {
   }
 
   if (!data || data.length === 0) {
-    return <EmptyState title="No demographic data available" />
+    return <EmptyState title="ไม่มีข้อมูลประชากร" />
   }
 
   // Normalise labels and compute percentages
@@ -156,7 +156,7 @@ export function GenderChart({ data, isLoading, className }: GenderChartProps) {
       </ResponsiveContainer>
       {allFromVisitRecords && (
         <Badge variant="secondary" className="mt-2">
-          Data from visit records
+          ข้อมูลจากบันทึกการเข้ารับบริการ
         </Badge>
       )}
     </div>

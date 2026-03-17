@@ -66,10 +66,10 @@ export function DepartmentTable() {
               #
             </TableHead>
             <TableHead className="uppercase text-xs tracking-wider text-muted-foreground">
-              Department
+              แผนก
             </TableHead>
             <TableHead className="text-right uppercase text-xs tracking-wider text-muted-foreground">
-              Visits
+              จำนวนครั้ง
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -100,14 +100,14 @@ export function DepartmentTable() {
     return (
       <EmptyState
         icon={<Building2 className="h-8 w-8" />}
-        title="Failed to load department data"
+        title="ไม่สามารถโหลดข้อมูลแผนกได้"
         description={error?.message ?? 'An unexpected error occurred.'}
         action={
           <button
             className="text-sm text-primary underline hover:no-underline"
             onClick={execute}
           >
-            Retry
+            ลองอีกครั้ง
           </button>
         }
       />
@@ -121,8 +121,8 @@ export function DepartmentTable() {
     return (
       <EmptyState
         icon={<Building2 className="h-8 w-8" />}
-        title="No department visits found for today"
-        description="Data will appear when patients visit."
+        title="ไม่มีข้อมูลการเข้ารับบริการวันนี้"
+        description="ข้อมูลจะปรากฏเมื่อมีผู้ป่วยเข้ารับบริการ"
       />
     )
   }
@@ -138,10 +138,10 @@ export function DepartmentTable() {
             #
           </TableHead>
           <TableHead className="uppercase text-xs tracking-wider text-muted-foreground">
-            Department
+            แผนก
           </TableHead>
           <TableHead className="text-right uppercase text-xs tracking-wider text-muted-foreground">
-            Visits
+            จำนวนครั้ง
           </TableHead>
         </TableRow>
       </TableHeader>
@@ -190,7 +190,7 @@ export function DepartmentTable() {
         {/* Total row */}
         <TableRow className="border-t-2">
           <TableCell />
-          <TableCell className="font-bold">Total</TableCell>
+          <TableCell className="font-bold">รวม</TableCell>
           <TableCell className="text-right font-bold">
             {totalVisits.toLocaleString()}
           </TableCell>

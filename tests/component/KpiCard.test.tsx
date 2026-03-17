@@ -57,7 +57,7 @@ describe('KpiCard', () => {
     )
     expect(screen.getByText('Connection failed')).toBeInTheDocument()
 
-    const retryButton = screen.getByRole('button', { name: /retry/i })
+    const retryButton = screen.getByRole('button', { name: /ลองอีกครั้ง|retry/i })
     await userEvent.click(retryButton)
     expect(onRetry).toHaveBeenCalledTimes(1)
   })

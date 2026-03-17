@@ -12,6 +12,7 @@ import {
   Tooltip,
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
+import { th } from 'date-fns/locale'
 import type { VisitTrend } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,7 +31,7 @@ interface VisitTrendChartProps {
  */
 function formatDateLabel(dateStr: string): string {
   try {
-    return format(parseISO(dateStr), 'MMM d')
+    return format(parseISO(dateStr), 'd MMM', { locale: th })
   } catch {
     return dateStr
   }

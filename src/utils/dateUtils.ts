@@ -3,6 +3,7 @@
 // =============================================================================
 
 import { format, subDays, parseISO } from 'date-fns';
+import { th } from 'date-fns/locale';
 
 // ---------------------------------------------------------------------------
 // Internal helper
@@ -31,7 +32,7 @@ function toDate(date: Date | string): Date {
  * @returns The formatted date string in `'MMM dd, yyyy'` format.
  */
 export function formatDate(date: Date | string): string {
-  return format(toDate(date), 'MMM dd, yyyy');
+  return format(toDate(date), 'd MMM yyyy', { locale: th });
 }
 
 /**
@@ -43,7 +44,7 @@ export function formatDate(date: Date | string): string {
  * @returns The formatted date-time string in `'MMM dd, yyyy HH:mm'` format.
  */
 export function formatDateTime(date: Date | string): string {
-  return format(toDate(date), 'MMM dd, yyyy HH:mm');
+  return format(toDate(date), 'd MMM yyyy HH:mm', { locale: th });
 }
 
 /**

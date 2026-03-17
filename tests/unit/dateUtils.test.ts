@@ -9,20 +9,20 @@ import {
 
 describe('dateUtils', () => {
   describe('formatDate', () => {
-    it('MUST format Date object as "MMM dd, yyyy"', () => {
+    it('MUST format Date object in Thai locale', () => {
       const date = new Date(2026, 2, 17) // March 17, 2026
-      expect(formatDate(date)).toBe('Mar 17, 2026')
+      expect(formatDate(date)).toBe('17 มี.ค. 2026')
     })
 
-    it('MUST format ISO string as "MMM dd, yyyy"', () => {
-      expect(formatDate('2026-03-17')).toBe('Mar 17, 2026')
+    it('MUST format ISO string in Thai locale', () => {
+      expect(formatDate('2026-03-17')).toBe('17 มี.ค. 2026')
     })
   })
 
   describe('formatDateTime', () => {
-    it('MUST format Date object as "MMM dd, yyyy HH:mm"', () => {
+    it('MUST format Date object in Thai locale with time', () => {
       const date = new Date(2026, 2, 17, 14, 30)
-      expect(formatDateTime(date)).toBe('Mar 17, 2026 14:30')
+      expect(formatDateTime(date)).toBe('17 มี.ค. 2026 14:30')
     })
   })
 

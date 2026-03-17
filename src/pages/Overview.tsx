@@ -370,7 +370,7 @@ export default function Overview() {
                   />
                   <Tooltip
                     formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
-                    labelFormatter={((label: unknown) => `Date: ${String(label)}`) as never}
+                    labelFormatter={((label: unknown) => `วันที่: ${String(label)}`) as never}
                     contentStyle={{
                       borderRadius: '8px',
                       border: '1px solid hsl(var(--border))',

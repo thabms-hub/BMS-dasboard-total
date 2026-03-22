@@ -171,6 +171,12 @@ export interface PatientTypeDistribution {
   visitCount: number;
 }
 
+export interface IpdWardDistribution {
+  wardName: string;
+  patientCount: number;
+  bedCount: number;
+}
+
 /** Recent visit record for the overview dashboard */
 export interface RecentVisit {
   vn: string

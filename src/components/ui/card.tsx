@@ -9,7 +9,9 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border bg-card text-card-foreground shadow",
+      /* Ghost Lift — surface-container-lowest on surface background
+         No 1px borders per "No-Line" rule */
+      "rounded-xl bg-card text-card-foreground ghost-lift",
       className
     )}
     {...props}

@@ -74,6 +74,52 @@ export async function getIpdPatientCount(
 }
 
 /**
+ * Inpatient count grouped by ward/ward name.
+ *
+ * Uses the `ward` table if present to resolve a descriptive ward name.
+ */
+export async function getIpdWardDistribution(
+  config: ConnectionConfig,
+): Promise<{ wardName: string; patientCount: number; bedCount: number }[]> {
+  // Some HOSxP installations might not include the `ward` table or may have
+  // different column names. We attempt the richer join first, then fallback
+  // to a safer query that only relies on the `ipt` table.
+  const joinSql =
+    `SELECT COALESCE(w.name, i.ward, 'ไม่ระบุ') as ward_name, COUNT(*) as patient_count, COALESCE(w.bedcount, 0) as bed_count ` +
+    `FROM ward w  ` +
+    `LEFT JOIN ipt i ON i.ward = w.ward ` +
+    `WHERE w.ward_active ='Y' AND (i.dchdate IS NULL OR i.confirm_discharge ='N') ` +
+    `GROUP BY w.name, i.ward, w.bedcount ` +
+    `ORDER BY patient_count DESC ` +
+    `LIMIT 10`;
+
+  try {
+    const response = await executeSqlViaApi(joinSql, config);
+    return parseQueryResponse(response, (row) => ({
+      wardName: String(row['ward_name'] ?? 'ไม่ระบุ'),
+      patientCount: Number(row['patient_count'] ?? 0),
+      bedCount: Number(row['bed_count'] ?? 0),
+    }));
+  } catch (error) {
+    // Fallback: keep the ward code, no bed count.
+    const fallbackSql =
+      `SELECT COALESCE(ward, 'ไม่ระบุ') as ward_name, COUNT(*) as patient_count ` +
+      `FROM ipt ` +
+      `WHERE dchdate IS NULL ` +
+      `GROUP BY ward_name ` +
+      `ORDER BY patient_count DESC ` +
+      `LIMIT 10`;
+
+    const response = await executeSqlViaApi(fallbackSql, config);
+    return parseQueryResponse(response, (row) => ({
+      wardName: String(row['ward_name'] ?? 'ไม่ระบุ'),
+      patientCount: Number(row['patient_count'] ?? 0),
+      bedCount: 0,
+    }));
+  }
+}
+
+/**
  * Count of ER visits for today.
  */
 export async function getErVisitCount(

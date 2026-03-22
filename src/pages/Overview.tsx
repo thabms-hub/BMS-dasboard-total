@@ -39,6 +39,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { KpiCardGrid } from '@/components/dashboard/KpiCardGrid'
 import { DepartmentTable } from '@/components/dashboard/DepartmentTable'
+import { InpatientWardChart } from '@/components/charts/InpatientWardChart'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
@@ -46,6 +47,7 @@ import {
   getWeeklyMiniTrend,
   getTopDoctorsThisMonth,
   getRecentVisits,
+  getIpdWardDistribution,
 } from '@/services/kpiService'
 import { formatDate, formatDateTime } from '@/utils/dateUtils'
 import { cn } from '@/lib/utils'
@@ -133,6 +135,18 @@ export default function Overview() {
     isLoading: isDoctorsLoading,
   } = useQuery<Awaited<ReturnType<typeof getTopDoctorsThisMonth>>>({
     queryFn: topDoctorsFn,
+    enabled: isConnected,
+  })
+
+  const ipdWardFn = useCallback(
+    () => getIpdWardDistribution(connectionConfig!),
+    [connectionConfig],
+  )
+  const {
+    data: ipdWardDistribution,
+    isLoading: isWardLoading,    isError: isWardError,
+    error: wardError,  } = useQuery<Awaited<ReturnType<typeof getIpdWardDistribution>>>({
+    queryFn: ipdWardFn,
     enabled: isConnected,
   })
 
@@ -442,8 +456,8 @@ export default function Overview() {
       {/* ------------------------------------------------------------------- */}
       {/* 5. Department Workload + Recent Visits                               */}
       {/* ------------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left: Department Workload (2/3 width) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+        {/* Left: Department Workload (2/4 width) */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-lg">ปริมาณงานแผนก</CardTitle>
@@ -456,8 +470,16 @@ export default function Overview() {
           </CardContent>
         </Card>
 
-        {/* Right: Recent Visits (1/3 width) */}
-        <Card>
+        {/* Middle: Inpatient Ward Distribution (1/4 width) */}
+        <InpatientWardChart
+          data={ipdWardDistribution ?? []}
+          isLoading={isWardLoading}
+          error={isWardError ? wardError : null}
+          className="lg:col-span-1"
+        />
+
+        {/* Right: Recent Visits (1/4 width) */}
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="text-lg">การเข้ารับบริการล่าสุด</CardTitle>
             <CardDescription>10 รายการล่าสุดที่บันทึก</CardDescription>
@@ -509,60 +531,54 @@ export default function Overview() {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 6. Session Info + Connection Footer                                  */}
+      {/* 6. Session Info — full-width status bar                             */}
       {/* ------------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Session Info Card */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg">ข้อมูลเซสชัน</CardTitle>
-            <CardDescription>รายละเอียดการเชื่อมต่อ</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {session ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {sessionInfoRows.map((row, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      {row.icon}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-muted-foreground">
-                        {row.label}
-                      </p>
-                      <div className="mt-0.5 truncate text-sm font-medium">
-                        {row.value}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                ไม่มีเซสชัน กรุณาเชื่อมต่อด้วยรหัสเซสชันเพื่อดูรายละเอียด
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Connection details footer bar */}
-      {session && (
-        <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
+      {session ? (
+        <div className="signature-gradient overflow-hidden rounded-xl shadow-md">
+          {/* Top strip: label */}
+          <div className="flex items-center justify-between border-b border-white/10 px-6 py-2.5">
+            <span className="text-xs font-semibold uppercase tracking-widest text-white/60">
+              ข้อมูลเซสชัน
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-white/50">
               <Globe className="h-3 w-3" />
-              API: {truncateUrl(session.apiUrl)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-3 w-3" />
-              เชื่อมต่อเมื่อ: {formatDateTime(session.connectedAt)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Database className="h-3 w-3" />
-              {session.databaseType.toUpperCase()}
+              {truncateUrl(session.apiUrl)}
             </span>
           </div>
+
+          {/* Info grid — 2 rows × 4 columns */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 divide-white/10 [&>*]:border-r [&>*]:border-b [&>*]:border-white/10">
+            {sessionInfoRows.map((row, idx) => (
+              <div key={idx} className="flex flex-col gap-0.5 px-5 py-3">
+                <div className="flex items-center gap-1.5 text-white/50">
+                  <span className="[&_svg]:h-3 [&_svg]:w-3">{row.icon}</span>
+                  <span className="text-[10px] font-medium uppercase tracking-wide">
+                    {row.label}
+                  </span>
+                </div>
+                <div className="truncate text-sm font-semibold text-white">
+                  {row.value}
+                </div>
+              </div>
+            ))}
+
+            {/* Connection time — 8th cell */}
+            <div className="flex flex-col gap-0.5 px-5 py-3">
+              <div className="flex items-center gap-1.5 text-white/50">
+                <Clock className="h-3 w-3" />
+                <span className="text-[10px] font-medium uppercase tracking-wide">
+                  เชื่อมต่อเมื่อ
+                </span>
+              </div>
+              <div className="truncate text-sm font-semibold text-white">
+                {formatDateTime(session.connectedAt)}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-muted-foreground/20 bg-muted/20 px-6 py-4 text-sm text-muted-foreground">
+          ไม่มีเซสชัน กรุณาเชื่อมต่อด้วยรหัสเซสชันเพื่อดูรายละเอียด
         </div>
       )}
     </div>

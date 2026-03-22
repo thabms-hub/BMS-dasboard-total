@@ -207,6 +207,17 @@
 
 ---
 
+## Phase 8: Docker Deployment & Local Testing
+
+**Purpose**: Ensure the app can be built and run in the existing Docker setup (docker-compose + nginx) so stakeholders can test without installing dependencies locally.
+
+- [ ] T083 Verify `Dockerfile` builds successfully and produces a working static bundle in `/dist`
+- [ ] T084 Verify `docker-compose.yaml` starts the app on port 3080 and returns HTTP 200 on `/` within healthcheck timeout
+- [ ] T085 Add or update documentation in `README.md` and `specs/001-bms-kpi-dashboard/quickstart.md` for docker-based dev/test workflow (build, run, stop)
+- [ ] T086 Add a simple smoke test script (e.g. `scripts/smoke-test-docker.sh` or `npm run smoke:dock` placeholder) to validate the container is responding (optional)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

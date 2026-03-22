@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { BmsSessionProvider } from '@/contexts/BmsSessionContext'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import { SessionValidator } from '@/components/session/SessionValidator'
 import { LoadingSpinner } from '@/components/layout/LoadingSpinner'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -27,13 +28,15 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <BmsSessionProvider>
-        <SessionValidator>
-          <AppLayout>
-            <AppRoutes />
-          </AppLayout>
-        </SessionValidator>
-      </BmsSessionProvider>
+      <ThemeProvider>
+        <BmsSessionProvider>
+          <SessionValidator>
+            <AppLayout>
+              <AppRoutes />
+            </AppLayout>
+          </SessionValidator>
+        </BmsSessionProvider>
+      </ThemeProvider>
     </BrowserRouter>
   )
 }

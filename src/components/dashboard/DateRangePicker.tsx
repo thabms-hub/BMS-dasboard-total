@@ -99,6 +99,7 @@ export function DateRangePicker({
             <input
               id="start-date"
               type="date"
+              lang="th"
               value={startDate}
               onChange={handleStartDateChange}
               disabled={isLoading}
@@ -119,6 +120,7 @@ export function DateRangePicker({
             <input
               id="end-date"
               type="date"
+              lang="th"
               value={endDate}
               onChange={handleEndDateChange}
               disabled={isLoading}

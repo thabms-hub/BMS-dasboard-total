@@ -7,7 +7,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
-  Activity,
   Building2,
   LayoutDashboard,
   LogOut,
@@ -52,19 +51,18 @@ export function AppHeader() {
   return (
     <header className="signature-gradient sticky top-0 z-50 flex h-16 items-center justify-between px-6 shadow-md">
       {/* ----------------------------------------------------------------- */}
-      {/* Left: Hospital icon + title                                       */}
+      {/* Left: Hospital logo + title                                       */}
       {/* ----------------------------------------------------------------- */}
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15">
-          <Activity className="h-5 w-5 text-white" />
-        </div>
+        <img
+          src="/dashboard-logo.png"
+          alt="Hospital Logo"
+          className="h-9 w-9 rounded-lg object-contain"
+        />
         <div className="flex flex-col">
           <h1 className="text-base font-extrabold leading-tight tracking-tight text-white">
-            แดชบอร์ด BMS
+            {session?.userInfo.location || 'โรงพยาบาล'}
           </h1>
-          <span className="text-[11px] leading-tight text-white/50">
-            สาธิตเซสชัน
-          </span>
         </div>
       </div>
 

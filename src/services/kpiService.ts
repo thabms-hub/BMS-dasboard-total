@@ -12,6 +12,7 @@ import type {
   DoctorWorkload,
   HourlyDistribution,
   KpiSummary,
+  OpdVisitDetail,
   OverviewStats,
   PatientTypeDistribution,
   RecentVisit,
@@ -57,6 +58,66 @@ export async function getOpdVisitCount(
   const response = await executeSqlViaApi(sql, config);
   const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
   return rows[0] ?? 0;
+}
+
+/**
+ * OPD visit breakdown for today: total, walk-in, appointment.
+ * Also fetches yesterday's total for trend comparison.
+ */
+export async function getOpdVisitDetail(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<OpdVisitDetail> {
+  const today = queryBuilder.currentDate(dbType);
+  const yesterday = queryBuilder.dateSubtract(dbType, 1);
+
+  const todaySql =
+    `SELECT ` +
+    `COUNT(DISTINCT ovst.vn) as count_vn, ` +
+    `COUNT(DISTINCT CASE WHEN oa.visit_vn IS NULL THEN ovst.vn END) as walkin, ` +
+    `COUNT(DISTINCT CASE WHEN oa.visit_vn IS NOT NULL THEN ovst.vn END) as oappoint ` +
+    `FROM ovst ` +
+    `INNER JOIN spclty s ON s.spclty = ovst.spclty ` +
+    `LEFT JOIN oapp oa ON ovst.hn = oa.hn AND oa.depcode = ovst.main_dep AND ovst.vstdate = oa.nextdate ` +
+    `WHERE ovst.vstdate = ${today}`;
+
+  const yesterdaySql =
+    `SELECT ` +
+    `COUNT(DISTINCT ovst.vn) as count_vn ` +
+    `FROM ovst ` +
+    `INNER JOIN spclty s ON s.spclty = ovst.spclty ` +
+    `WHERE ovst.vstdate = ${yesterday}`;
+
+  const [todayResp, yesterdayResp] = await Promise.all([
+    executeSqlViaApi(todaySql, config),
+    executeSqlViaApi(yesterdaySql, config),
+  ]);
+
+  const todayRows = parseQueryResponse(todayResp, (row) => ({
+    total: Number(row['count_vn'] ?? 0),
+    walkin: Number(row['walkin'] ?? 0),
+    appointment: Number(row['oappoint'] ?? 0),
+  }));
+  const yesterdayRows = parseQueryResponse(yesterdayResp, (row) =>
+    Number(row['count_vn'] ?? 0),
+  );
+
+  const today_ = todayRows[0] ?? { total: 0, walkin: 0, appointment: 0 };
+  const yesterdayTotal = yesterdayRows[0] ?? 0;
+
+  const trendPercent =
+    yesterdayTotal > 0
+      ? Math.round(((today_.total - yesterdayTotal) / yesterdayTotal) * 100)
+      : null;
+
+  return {
+    total: today_.total,
+    walkin: today_.walkin,
+    appointment: today_.appointment,
+    yesterdayTotal,
+    trendPercent,
+    isPositive: (trendPercent ?? 0) >= 0,
+  };
 }
 
 /**
@@ -777,6 +838,31 @@ export async function getDeathSummary(
     thisMonthDeaths: Number(row['this_month'] ?? 0),
   }));
   return rows[0] ?? { totalDeaths: 0, thisYearDeaths: 0, thisMonthDeaths: 0 };
+}
+
+/**
+ * OPD patient count grouped by specialty (spclty) for the current month.
+ * Only OPD visits (an IS NULL). Returns all departments ordered by count desc.
+ */
+export async function getOpdDepartmentThisMonth(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<{ departmentName: string; visitCount: number }[]> {
+  const monthExpr = queryBuilder.dateFormat(dbType, 'ovst.vstdate', '%Y-%m');
+  const currentMonthExpr = queryBuilder.dateFormat(dbType, queryBuilder.currentDate(dbType), '%Y-%m');
+  const sql =
+    `SELECT s.name as spclty_name, COUNT(DISTINCT ovst.vn) as count_vn ` +
+    `FROM ovst ` +
+    `INNER JOIN spclty s ON s.spclty = ovst.spclty ` +
+    `WHERE ovst.an IS NULL ` +
+    `AND ${monthExpr} = ${currentMonthExpr} ` +
+    `GROUP BY s.name ` +
+    `ORDER BY count_vn DESC`;
+  const response = await executeSqlViaApi(sql, config);
+  return parseQueryResponse(response, (row) => ({
+    departmentName: String(row['spclty_name'] ?? ''),
+    visitCount: Number(row['count_vn'] ?? 0),
+  }));
 }
 
 /**

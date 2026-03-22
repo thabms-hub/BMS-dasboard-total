@@ -187,6 +187,17 @@ export interface RecentVisit {
   doctorName: string
 }
 
+/** OPD visit breakdown for today vs yesterday */
+export interface OpdVisitDetail {
+  total: number
+  walkin: number
+  appointment: number
+  yesterdayTotal: number
+  /** Percent change vs yesterday, null when yesterday = 0 */
+  trendPercent: number | null
+  isPositive: boolean
+}
+
 /** Overview statistics beyond the 4 main KPIs */
 export interface OverviewStats {
   totalRegisteredPatients: number

@@ -40,6 +40,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { KpiCardGrid } from '@/components/dashboard/KpiCardGrid'
 import { DepartmentTable } from '@/components/dashboard/DepartmentTable'
 import { InpatientWardChart } from '@/components/charts/InpatientWardChart'
+import { OpdDepartmentDonutChart } from '@/components/charts/OpdDepartmentDonutChart'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
@@ -48,6 +49,7 @@ import {
   getTopDoctorsThisMonth,
   getRecentVisits,
   getIpdWardDistribution,
+  getOpdDepartmentThisMonth,
 } from '@/services/kpiService'
 import { formatDate, formatDateTime } from '@/utils/dateUtils'
 import { cn } from '@/lib/utils'
@@ -147,6 +149,20 @@ export default function Overview() {
     isLoading: isWardLoading,    isError: isWardError,
     error: wardError,  } = useQuery<Awaited<ReturnType<typeof getIpdWardDistribution>>>({
     queryFn: ipdWardFn,
+    enabled: isConnected,
+  })
+
+  const opdDepartmentFn = useCallback(
+    () => getOpdDepartmentThisMonth(connectionConfig!, session!.databaseType),
+    [connectionConfig, session],
+  )
+  const {
+    data: opdDepartmentData,
+    isLoading: isOpdDeptLoading,
+    isError: isOpdDeptError,
+    error: opdDeptError,
+  } = useQuery<Awaited<ReturnType<typeof getOpdDepartmentThisMonth>>>({
+    queryFn: opdDepartmentFn,
     enabled: isConnected,
   })
 
@@ -343,11 +359,19 @@ export default function Overview() {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 4. Weekly Trend + Top Doctors                                        */}
+      {/* 4. OPD Donut + Weekly Trend + Top Doctors  (3 / 6 / 3)             */}
       {/* ------------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        {/* Left: Weekly Visit Trend (3/5 width) */}
-        <Card className="lg:col-span-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* OPD Department Donut (3/12) */}
+        <OpdDepartmentDonutChart
+          data={opdDepartmentData ?? []}
+          isLoading={isOpdDeptLoading}
+          error={isOpdDeptError ? opdDeptError : null}
+          className="lg:col-span-3"
+        />
+
+        {/* Weekly Visit Trend (6/12) */}
+        <Card className="lg:col-span-6">
           <CardHeader>
             <CardTitle className="text-lg">การเข้ารับบริการสัปดาห์นี้</CardTitle>
             <CardDescription>
@@ -408,8 +432,8 @@ export default function Overview() {
           </CardContent>
         </Card>
 
-        {/* Right: Top Doctors This Month (2/5 width) */}
-        <Card className="lg:col-span-2">
+        {/* Top Doctors This Month (3/12) */}
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-lg">แพทย์ยอดนิยมในเดือนนี้</CardTitle>
             <CardDescription>เรียงตามจำนวนผู้ป่วย</CardDescription>
@@ -454,7 +478,7 @@ export default function Overview() {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 5. Department Workload + Recent Visits                               */}
+      {/* 6. Department Workload + Recent Visits                               */}
       {/* ------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
         {/* Left: Department Workload (2/4 width) */}
@@ -531,7 +555,7 @@ export default function Overview() {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 6. Session Info — full-width status bar                             */}
+      {/* 7. Session Info — full-width status bar                             */}
       {/* ------------------------------------------------------------------- */}
       {session ? (
         <div className="signature-gradient overflow-hidden rounded-xl shadow-md">

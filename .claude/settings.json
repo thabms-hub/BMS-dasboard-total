@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -l BarChart d:ThaclaudeBMSsessionIDbms-session-id-demo-dashboardsrccomponentscharts*.tsx)"
+      "Bash(grep -l BarChart d:ThaclaudeBMSsessionIDbms-session-id-demo-dashboardsrccomponentscharts*.tsx)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Feature: Export Dashboard, Charts, and Table Data:*)"
     ]
   }
 }

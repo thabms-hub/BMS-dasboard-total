@@ -62,12 +62,12 @@ function ThaiDateInput({ id, value, onChange, disabled }: ThaiDateInputProps) {
   }
 
   const selectClass =
-    'h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm ' +
+    'h-8 bg-background px-2 text-sm ' +
     'transition-colors focus-visible:outline-none focus-visible:ring-1 ' +
-    'focus-visible:ring-ring disabled:opacity-50'
+    'focus-visible:ring-ring disabled:opacity-50 border-0'
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="inline-flex items-center rounded-md border border-input bg-background shadow-sm overflow-hidden">
       {/* Day */}
       <select
         id={`${id}-day`}
@@ -84,6 +84,9 @@ function ThaiDateInput({ id, value, onChange, disabled }: ThaiDateInputProps) {
         ))}
       </select>
 
+      {/* Divider */}
+      <div className="w-px h-6 bg-border" />
+
       {/* Month */}
       <select
         id={`${id}-month`}
@@ -99,6 +102,9 @@ function ThaiDateInput({ id, value, onChange, disabled }: ThaiDateInputProps) {
           </option>
         ))}
       </select>
+
+      {/* Divider */}
+      <div className="w-px h-6 bg-border" />
 
       {/* Year (BE) */}
       <select

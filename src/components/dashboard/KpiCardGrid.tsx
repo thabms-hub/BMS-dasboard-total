@@ -3,12 +3,14 @@
 // =============================================================================
 
 import { useCallback } from 'react'
-import { BedDouble, Siren, Building2 } from 'lucide-react'
+import { Building2 } from 'lucide-react'
 import { KpiCard } from '@/components/dashboard/KpiCard'
 import { OpdKpiCard } from '@/components/dashboard/OpdKpiCard'
+import { IpdKpiCard } from '@/components/dashboard/IpdKpiCard'
+import { ErKpiCard } from '@/components/dashboard/ErKpiCard'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
-import { getKpiSummary, getOpdVisitDetail } from '@/services/kpiService'
+import { getKpiSummary, getOpdVisitDetail, getIpdVisitDetail, getErVisitDetail } from '@/services/kpiService'
 
 export function KpiCardGrid() {
   const { connectionConfig, session } = useBmsSessionContext()
@@ -44,6 +46,36 @@ export function KpiCardGrid() {
     enabled,
   })
 
+  const ipdFn = useCallback(
+    () => getIpdVisitDetail(connectionConfig!, session!.databaseType),
+    [connectionConfig, session],
+  )
+  const {
+    data: ipdDetail,
+    isLoading: isIpdLoading,
+    isError: isIpdError,
+    error: ipdError,
+    execute: retryIpd,
+  } = useQuery<Awaited<ReturnType<typeof getIpdVisitDetail>>>({
+    queryFn: ipdFn,
+    enabled,
+  })
+
+  const erFn = useCallback(
+    () => getErVisitDetail(connectionConfig!, session!.databaseType),
+    [connectionConfig, session],
+  )
+  const {
+    data: erDetail,
+    isLoading: isErLoading,
+    isError: isErError,
+    error: erError,
+    execute: retryEr,
+  } = useQuery<Awaited<ReturnType<typeof getErVisitDetail>>>({
+    queryFn: erFn,
+    enabled,
+  })
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <OpdKpiCard
@@ -53,27 +85,19 @@ export function KpiCardGrid() {
         error={opdError?.message}
         onRetry={retryOpd}
       />
-      <KpiCard
-        title="ผู้ป่วยใน (IPD)"
-        value={kpiSummary?.ipdPatientCount ?? null}
-        icon={<BedDouble className="h-5 w-5" />}
-        isLoading={isKpiLoading}
-        isError={isKpiError}
-        error={kpiError?.message}
-        onRetry={retryKpi}
-        description="จำนวนผู้ป่วยในปัจจุบัน"
-        accentColor="text-purple-500"
+      <IpdKpiCard
+        data={ipdDetail ?? null}
+        isLoading={isIpdLoading}
+        isError={isIpdError}
+        error={ipdError?.message}
+        onRetry={retryIpd}
       />
-      <KpiCard
-        title="ห้องฉุกเฉิน (ER)"
-        value={kpiSummary?.erVisitCount ?? null}
-        icon={<Siren className="h-5 w-5" />}
-        isLoading={isKpiLoading}
-        isError={isKpiError}
-        error={kpiError?.message}
-        onRetry={retryKpi}
-        description="จำนวนเข้ารับบริการฉุกเฉินวันนี้"
-        accentColor="text-red-500"
+      <ErKpiCard
+        data={erDetail ?? null}
+        isLoading={isErLoading}
+        isError={isErError}
+        error={erError?.message}
+        onRetry={retryEr}
       />
       <KpiCard
         title="แผนกที่มีบริการ"

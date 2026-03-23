@@ -10,7 +10,9 @@ import type {
   DatabaseType,
   DepartmentWorkload,
   DoctorWorkload,
+  ErVisitDetail,
   HourlyDistribution,
+  IpdVisitDetail,
   KpiSummary,
   OpdVisitDetail,
   OverviewStats,
@@ -128,10 +130,92 @@ export async function getOpdVisitDetail(
 export async function getIpdPatientCount(
   config: ConnectionConfig,
 ): Promise<number> {
-  const sql = `SELECT COUNT(*) as total FROM ipt WHERE dchdate IS NULL`;
+  const sql = `SELECT COUNT(*) as total FROM ipt WHERE confirm_discharge = 'N'`;
   const response = await executeSqlViaApi(sql, config);
   const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
   return rows[0] ?? 0;
+}
+
+/**
+ * Count of admitted patients today.
+ */
+export async function getTodayAdmittedCount(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<number> {
+  const sql = `SELECT COUNT(*) as total FROM ipt WHERE regdate = ${queryBuilder.currentDate(dbType)}`;
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
+  return rows[0] ?? 0;
+}
+
+/**
+ * Count of discharged patients today.
+ */
+export async function getTodayDischargedCount(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<number> {
+  const sql = `SELECT COUNT(*) as total FROM ipt WHERE dchdate = ${queryBuilder.currentDate(dbType)}`;
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
+  return rows[0] ?? 0;
+}
+
+/**
+ * Count of inpatients from yesterday for trend comparison.
+ * Uses ward_admit_snapshot table or falls back to ipt table.
+ */
+export async function getYesterdayIpdPatientCount(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<number> {
+  const yesterday = queryBuilder.dateSubtract(dbType, 1);
+
+  // Try to get from ward_admit_snapshot first
+  const sql = `SELECT COUNT(*) as total FROM ward_admit_snapshot WHERE snapshot_date = ${yesterday}`;
+  try {
+    const response = await executeSqlViaApi(sql, config);
+    const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
+    return rows[0] ?? 0;
+  } catch {
+    // Fallback: estimate from ipt table (patients that were admitted before yesterday and not discharged)
+    const fallbackSql =
+      `SELECT COUNT(*) as total FROM ipt WHERE regdate < ${yesterday} AND confirm_discharge = 'N'`;
+    const response = await executeSqlViaApi(fallbackSql, config);
+    const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
+    return rows[0] ?? 0;
+  }
+}
+
+/**
+ * IPD visit breakdown for today: currently admitted, admitted today, discharged today.
+ * Also fetches yesterday's total for trend comparison.
+ */
+export async function getIpdVisitDetail(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+) {
+  const [current, yesterdayTotal, todayAdmitted, todayDischarged] = await Promise.all([
+    getIpdPatientCount(config),
+    getYesterdayIpdPatientCount(config, dbType),
+    getTodayAdmittedCount(config, dbType),
+    getTodayDischargedCount(config, dbType),
+  ]);
+
+  const trendPercent =
+    yesterdayTotal > 0
+      ? Math.round(((current - yesterdayTotal) / yesterdayTotal) * 100)
+      : null;
+
+  return {
+    current,
+    yesterdayTotal,
+    todayAdmitted,
+    todayDischarged,
+    trendPercent,
+    isPositive: (trendPercent ?? 0) >= 0,
+  };
 }
 
 /**
@@ -166,7 +250,7 @@ export async function getIpdWardDistribution(
     const fallbackSql =
       `SELECT COALESCE(ward, 'ไม่ระบุ') as ward_name, COUNT(*) as patient_count ` +
       `FROM ipt ` +
-      `WHERE dchdate IS NULL ` +
+      `WHERE confirm_discharge = 'N' ` +
       `GROUP BY ward_name ` +
       `ORDER BY patient_count DESC ` +
       `LIMIT 10`;
@@ -207,6 +291,100 @@ export async function getActiveDepartmentCount(
   const response = await executeSqlViaApi(sql, config);
   const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
   return rows[0] ?? 0;
+}
+
+/**
+ * Count of ER visits from yesterday for trend comparison.
+ */
+export async function getYesterdayErVisitCount(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<number> {
+  const yesterday = queryBuilder.dateSubtract(dbType, 1);
+  const sql = `SELECT COUNT(*) as total FROM er_regist WHERE vstdate = ${yesterday}`;
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
+  return rows[0] ?? 0;
+}
+
+/**
+ * ER patients breakdown by triage color for today.
+ * Returns counts for each triage level (red, pink, yellow, green, white).
+ */
+export async function getErTriageBreakdown(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<{
+  redCount: number
+  pinkCount: number
+  yellowCount: number
+  greenCount: number
+  whiteCount: number
+}> {
+  const sql =
+    `SELECT ` +
+    `COUNT(CASE WHEN et.export_code = '1' THEN rg.vn END) as red_count, ` +
+    `COUNT(CASE WHEN et.export_code = '2' THEN rg.vn END) as pink_count, ` +
+    `COUNT(CASE WHEN et.export_code = '3' THEN rg.vn END) as yellow_count, ` +
+    `COUNT(CASE WHEN et.export_code = '4' THEN rg.vn END) as green_count, ` +
+    `COUNT(CASE WHEN et.export_code = '5' OR et.export_code IS NULL THEN rg.vn END) as white_count ` +
+    `FROM er_regist rg ` +
+    `LEFT JOIN er_emergency_type et ON rg.er_emergency_type = et.er_emergency_type ` +
+    `WHERE rg.vstdate = ${queryBuilder.currentDate(dbType)}`
+
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => ({
+    redCount: Number(row['red_count'] ?? 0),
+    pinkCount: Number(row['pink_count'] ?? 0),
+    yellowCount: Number(row['yellow_count'] ?? 0),
+    greenCount: Number(row['green_count'] ?? 0),
+    whiteCount: Number(row['white_count'] ?? 0),
+  }));
+
+  return rows[0] ?? {
+    redCount: 0,
+    pinkCount: 0,
+    yellowCount: 0,
+    greenCount: 0,
+    whiteCount: 0,
+  };
+}
+
+/**
+ * ER visit detail combining today's count, yesterday's count, and triage breakdown.
+ */
+export async function getErVisitDetail(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<{
+  total: number
+  yesterdayTotal: number
+  trendPercent: number | null
+  isPositive: boolean
+  redCount: number
+  pinkCount: number
+  yellowCount: number
+  greenCount: number
+  whiteCount: number
+}> {
+  const [todayTotal, yesterdayTotal, triageBreakdown] = await Promise.all([
+    getErVisitCount(config, dbType),
+    getYesterdayErVisitCount(config, dbType),
+    getErTriageBreakdown(config, dbType),
+  ])
+
+  const trendPercent =
+    yesterdayTotal > 0
+      ? Math.round(((todayTotal - yesterdayTotal) / yesterdayTotal) * 100)
+      : null
+
+  return {
+    total: todayTotal,
+    yesterdayTotal,
+    trendPercent,
+    isPositive: (trendPercent ?? 0) >= 0,
+    ...triageBreakdown,
+  }
 }
 
 /**

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -l BarChart d:ThaclaudeBMSsessionIDbms-session-id-demo-dashboardsrccomponentscharts*.tsx)"
+    ]
+  }
+}

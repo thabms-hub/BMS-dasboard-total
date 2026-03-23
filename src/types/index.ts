@@ -198,6 +198,31 @@ export interface OpdVisitDetail {
   isPositive: boolean
 }
 
+/** IPD visit breakdown for today vs yesterday */
+export interface IpdVisitDetail {
+  current: number
+  yesterdayTotal: number
+  todayAdmitted: number
+  todayDischarged: number
+  /** Percent change vs yesterday, null when yesterday = 0 */
+  trendPercent: number | null
+  isPositive: boolean
+}
+
+/** ER visit breakdown by triage color for today vs yesterday */
+export interface ErVisitDetail {
+  total: number
+  yesterdayTotal: number
+  /** Percent change vs yesterday, null when yesterday = 0 */
+  trendPercent: number | null
+  isPositive: boolean
+  redCount: number
+  pinkCount: number
+  yellowCount: number
+  greenCount: number
+  whiteCount: number
+}
+
 /** Overview statistics beyond the 4 main KPIs */
 export interface OverviewStats {
   totalRegisteredPatients: number

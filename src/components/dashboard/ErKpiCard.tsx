@@ -1,17 +1,18 @@
 // =============================================================================
-// BMS Session KPI Dashboard - OPD KPI Card
-// Shows today's OPD total with walk-in / appointment breakdown and real trend
+// BMS Session KPI Dashboard - ER KPI Card
+// Shows emergency room statistics: today's visits, triage breakdown,
+// trend vs yesterday
 // =============================================================================
 
-import { UserPlus, ArrowUp, ArrowDown, AlertCircle, RotateCcw } from 'lucide-react'
+import { Siren, ArrowUp, ArrowDown, AlertCircle, RotateCcw } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { OpdVisitDetail } from '@/types'
+import type { ErVisitDetail } from '@/types'
 
-interface OpdKpiCardProps {
-  data: OpdVisitDetail | null
+interface ErKpiCardProps {
+  data: ErVisitDetail | null
   isLoading: boolean
   isError: boolean
   error?: string
@@ -19,12 +20,12 @@ interface OpdKpiCardProps {
 }
 
 const ACCENT = {
-  border: 'border-l-blue-500',
-  bg: 'bg-blue-500/10',
-  text: 'text-blue-500',
+  border: 'border-l-red-500',
+  bg: 'bg-red-500/10',
+  text: 'text-red-500',
 }
 
-export function OpdKpiCard({ data, isLoading, isError, error, onRetry }: OpdKpiCardProps) {
+export function ErKpiCard({ data, isLoading, isError, error, onRetry }: ErKpiCardProps) {
   // ---------------------------------------------------------------------------
   // Loading
   // ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ export function OpdKpiCard({ data, isLoading, isError, error, onRetry }: OpdKpiC
             <div className="flex-1 space-y-3">
               <Skeleton className="h-3.5 w-28" />
               <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-3 w-40" />
               <Skeleton className="h-3 w-40" />
             </div>
             <Skeleton className="h-10 w-10 rounded-full" />
@@ -55,7 +57,7 @@ export function OpdKpiCard({ data, isLoading, isError, error, onRetry }: OpdKpiC
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                ผู้ป่วยนอก (OPD) วันนี้
+                ห้องฉุกเฉิน (ER)
               </p>
               <div className="mt-2 flex items-center gap-1.5 text-destructive">
                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -74,7 +76,7 @@ export function OpdKpiCard({ data, isLoading, isError, error, onRetry }: OpdKpiC
               )}
             </div>
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-              <UserPlus className="h-5 w-5" />
+              <Siren className="h-5 w-5" />
             </div>
           </div>
         </div>
@@ -86,11 +88,14 @@ export function OpdKpiCard({ data, isLoading, isError, error, onRetry }: OpdKpiC
   // Loaded
   // ---------------------------------------------------------------------------
   const total = data?.total ?? 0
-  const walkin = data?.walkin ?? 0
-  const appointment = data?.appointment ?? 0
   const yesterdayTotal = data?.yesterdayTotal ?? 0
   const trendPercent = data?.trendPercent ?? null
   const isPositive = data?.isPositive ?? true
+  const redCount = data?.redCount ?? 0
+  const pinkCount = data?.pinkCount ?? 0
+  const yellowCount = data?.yellowCount ?? 0
+  const greenCount = data?.greenCount ?? 0
+  const whiteCount = data?.whiteCount ?? 0
 
   return (
     <Card
@@ -104,7 +109,7 @@ export function OpdKpiCard({ data, isLoading, isError, error, onRetry }: OpdKpiC
           {/* Left content */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-              ผู้ป่วยนอก (OPD) วันนี้
+              ห้องฉุกเฉิน (ER) วันนี้
             </p>
 
             {/* Total + trend badge */}
@@ -132,25 +137,41 @@ export function OpdKpiCard({ data, isLoading, isError, error, onRetry }: OpdKpiC
               )}
             </div>
 
-            {/* Walk-in / Appointment breakdown */}
-            <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-              <span>
-                Walk-in{' '}
-                <span className="font-semibold text-foreground">
-                  {walkin.toLocaleString()}
-                </span>
-              </span>
-              <span className="text-sm font-medium text-muted-foreground/60">•</span>
-              <span>
-                นัดหมาย{' '}
-                <span className="font-semibold text-foreground">
-                  {appointment.toLocaleString()}
-                </span>
-              </span>
+            {/* Triage breakdown by color — horizontal */}
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+                <span>แดง</span>
+                <span className="font-semibold text-foreground">{redCount.toLocaleString()}</span>
+              </div>
+              <span className="text-muted-foreground/30">•</span>
+              <div className="flex items-center gap-1">
+                <span className="inline-flex h-2 w-2 rounded-full bg-pink-500" />
+                <span>ชมพู</span>
+                <span className="font-semibold text-foreground">{pinkCount.toLocaleString()}</span>
+              </div>
+              <span className="text-muted-foreground/30">•</span>
+              <div className="flex items-center gap-1">
+                <span className="inline-flex h-2 w-2 rounded-full bg-yellow-500" />
+                <span>เหลือง</span>
+                <span className="font-semibold text-foreground">{yellowCount.toLocaleString()}</span>
+              </div>
+              <span className="text-muted-foreground/30">•</span>
+              <div className="flex items-center gap-1">
+                <span className="inline-flex h-2 w-2 rounded-full bg-green-500" />
+                <span>เขียว</span>
+                <span className="font-semibold text-foreground">{greenCount.toLocaleString()}</span>
+              </div>
+              <span className="text-muted-foreground/30">•</span>
+              <div className="flex items-center gap-1">
+                <span className="inline-flex h-2 w-2 rounded-full bg-gray-400" />
+                <span>ขาว</span>
+                <span className="font-semibold text-foreground">{whiteCount.toLocaleString()}</span>
+              </div>
             </div>
 
             {/* vs yesterday */}
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground">
               เมื่อวาน{' '}
               <span className="font-medium text-foreground">
                 {yesterdayTotal.toLocaleString()}
@@ -167,7 +188,7 @@ export function OpdKpiCard({ data, isLoading, isError, error, onRetry }: OpdKpiC
               ACCENT.text,
             )}
           >
-            <UserPlus className="h-5 w-5" />
+            <Siren className="h-5 w-5" />
           </div>
         </div>
       </div>

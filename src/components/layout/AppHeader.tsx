@@ -40,7 +40,7 @@ const NAV_TABS: NavTab[] = [
 
 export function AppHeader() {
   const { session, disconnectSession } = useBmsSessionContext();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, colorTheme, setColorTheme } = useTheme();
   const location = useLocation();
 
   const databaseLabel =
@@ -104,6 +104,37 @@ export function AppHeader() {
       {/* Right: Theme toggle, connection status, DB badge, user, disconnect */}
       {/* ----------------------------------------------------------------- */}
       <div className="flex items-center gap-3">
+        {/* Color theme swatches */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setColorTheme('blue')}
+            title="ธีมสีน้ำเงิน"
+            className={`h-5 w-5 rounded-full bg-blue-500 ring-offset-1 transition-all ${
+              colorTheme === 'blue'
+                ? 'ring-2 ring-white/80 scale-110'
+                : 'opacity-60 hover:opacity-90'
+            }`}
+          />
+          <button
+            onClick={() => setColorTheme('green')}
+            title="ธีมสีเขียว"
+            className={`h-5 w-5 rounded-full bg-green-500 ring-offset-1 transition-all ${
+              colorTheme === 'green'
+                ? 'ring-2 ring-white/80 scale-110'
+                : 'opacity-60 hover:opacity-90'
+            }`}
+          />
+          <button
+            onClick={() => setColorTheme('orange')}
+            title="ธีมสีส้ม"
+            className={`h-5 w-5 rounded-full bg-orange-500 ring-offset-1 transition-all ${
+              colorTheme === 'orange'
+                ? 'ring-2 ring-white/80 scale-110'
+                : 'opacity-60 hover:opacity-90'
+            }`}
+          />
+        </div>
+
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}

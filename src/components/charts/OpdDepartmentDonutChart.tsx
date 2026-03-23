@@ -220,6 +220,7 @@ export function OpdDepartmentDonutChart({
       <CardHeader>
         <CardTitle className="text-lg">
           ผู้ป่วยนอกเดือนนี้แยกตามแผนก{' '}
+          <span className="mx-1 text-muted-foreground/50">|</span>{' '}
           <span className="font-semibold text-foreground">
             {total.toLocaleString()}
           </span>{' '}

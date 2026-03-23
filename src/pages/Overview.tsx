@@ -319,7 +319,7 @@ export default function Overview() {
         <Button
           variant="outline"
           size="sm"
-          className="mt-2 gap-1.5 sm:mt-0"
+          className="mt-2 gap-1.5 sm:mt-0 dark:bg-orange-500/5 dark:border-orange-400/60 dark:text-orange-300 dark:hover:bg-orange-500/15 dark:hover:border-orange-300 dark:hover:text-orange-200"
           onClick={handleRefresh}
           disabled={isRefreshing}
         >
@@ -415,12 +415,14 @@ export default function Overview() {
                       background: 'hsl(var(--card))',
                       fontSize: '12px',
                     }}
+                    cursor={false}
                   />
                   <Bar
                     dataKey="visitCount"
                     fill="hsl(var(--primary))"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={48}
+                    isAnimationActive={false}
                   />
                 </BarChart>
               </ResponsiveContainer>

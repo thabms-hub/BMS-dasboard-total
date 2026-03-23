@@ -195,7 +195,7 @@ export async function getYesterdayIpdPatientCount(
 export async function getIpdVisitDetail(
   config: ConnectionConfig,
   dbType: DatabaseType,
-) {
+): Promise<IpdVisitDetail> {
   const [current, yesterdayTotal, todayAdmitted, todayDischarged] = await Promise.all([
     getIpdPatientCount(config),
     getYesterdayIpdPatientCount(config, dbType),
@@ -356,17 +356,7 @@ export async function getErTriageBreakdown(
 export async function getErVisitDetail(
   config: ConnectionConfig,
   dbType: DatabaseType,
-): Promise<{
-  total: number
-  yesterdayTotal: number
-  trendPercent: number | null
-  isPositive: boolean
-  redCount: number
-  pinkCount: number
-  yellowCount: number
-  greenCount: number
-  whiteCount: number
-}> {
+): Promise<ErVisitDetail> {
   const [todayTotal, yesterdayTotal, triageBreakdown] = await Promise.all([
     getErVisitCount(config, dbType),
     getYesterdayErVisitCount(config, dbType),

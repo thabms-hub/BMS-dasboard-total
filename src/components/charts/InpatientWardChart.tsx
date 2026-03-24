@@ -81,6 +81,8 @@ export function InpatientWardChart({ data, isLoading, error, className }: Inpati
   }
 
   const totalPatients = data.reduce((sum, ward) => sum + ward.patientCount, 0)
+  const yesterdayPatientCount = data[0]?.yesterdayPatientCount ?? 0
+  const percentageChange = data[0]?.percentageChange ?? 0
   const chartHeight = Math.max(300, data.length * 40)
 
   return (
@@ -91,6 +93,14 @@ export function InpatientWardChart({ data, isLoading, error, className }: Inpati
         </CardTitle>
         <CardDescription className="text-base font-semibold text-foreground">
           รวมทั้งสิ้น: {totalPatients.toLocaleString()} คน
+          {yesterdayPatientCount > 0 && (
+            <div className="mt-1 text-sm text-muted-foreground">
+              เมื่อวาน: {yesterdayPatientCount.toLocaleString()} คน
+              <span className={percentageChange >= 0 ? 'ml-2 text-red-600' : 'ml-2 text-green-600'}>
+                ({percentageChange >= 0 ? '+' : ''}{percentageChange.toFixed(1)}%)
+              </span>
+            </div>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>

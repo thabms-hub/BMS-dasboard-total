@@ -319,7 +319,7 @@ export default function Overview() {
         <Button
           variant="outline"
           size="sm"
-          className="mt-2 gap-1.5 sm:mt-0 dark:bg-orange-500/5 dark:border-orange-400/60 dark:text-orange-300 dark:hover:bg-orange-500/15 dark:hover:border-orange-300 dark:hover:text-orange-200"
+          className="mt-2 gap-1.5 sm:mt-0 text-blue dark:text-white dark:bg-orange-500/5 dark:border-orange-400/60 dark:hover:bg-orange-500/15 dark:hover:border-orange-300"
           onClick={handleRefresh}
           disabled={isRefreshing}
         >

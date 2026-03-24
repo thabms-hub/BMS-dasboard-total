@@ -173,7 +173,7 @@ export async function getYesterdayIpdPatientCount(
   const yesterday = queryBuilder.dateSubtract(dbType, 1);
 
   // Try to get from ward_admit_snapshot first
-  const sql = `SELECT COUNT(*) as total FROM ward_admit_snapshot WHERE snapshot_date = ${yesterday}`;
+  const sql = `SELECT COUNT(*) as total FROM ward_admit_snapshot WHERE snap_date = ${yesterday}`;
   try {
     const response = await executeSqlViaApi(sql, config);
     const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
@@ -225,7 +225,22 @@ export async function getIpdVisitDetail(
  */
 export async function getIpdWardDistribution(
   config: ConnectionConfig,
-): Promise<{ wardName: string; patientCount: number; bedCount: number }[]> {
+): Promise<{ wardName: string; patientCount: number; bedCount: number; yesterdayPatientCount?: number; percentageChange?: number }[]> {
+  // Get yesterday's total IPD patient count from ward_admit_snapshot
+  const yesterday = queryBuilder.dateSubtract('mysql', 1);
+  const yesterdayCountSql =
+    `SELECT COALESCE(COUNT(*), 0) as yesterday_total FROM ward_admit_snapshot WHERE snap_date = ${yesterday}`;
+
+  let yesterdayTotalCount = 0;
+  try {
+    const yesterdayResponse = await executeSqlViaApi(yesterdayCountSql, config);
+    const yesterdayData = parseQueryResponse(yesterdayResponse, (row) => Number(row['yesterday_total'] ?? 0));
+    yesterdayTotalCount = yesterdayData[0] ?? 0;
+  } catch {
+    // If ward_admit_snapshot query fails, continue without yesterday's data
+    yesterdayTotalCount = 0;
+  }
+
   // Some HOSxP installations might not include the `ward` table or may have
   // different column names. We attempt the richer join first, then fallback
   // to a safer query that only relies on the `ipt` table.
@@ -240,10 +255,19 @@ export async function getIpdWardDistribution(
 
   try {
     const response = await executeSqlViaApi(joinSql, config);
+    const currentTotal = parseQueryResponse(response, (row) => Number(row['patient_count'] ?? 0))
+      .reduce((sum, count) => sum + count, 0);
+
+    const percentageChange = yesterdayTotalCount > 0
+      ? ((currentTotal - yesterdayTotalCount) / yesterdayTotalCount) * 100
+      : 0;
+
     return parseQueryResponse(response, (row) => ({
       wardName: String(row['ward_name'] ?? 'ไม่ระบุ'),
       patientCount: Number(row['patient_count'] ?? 0),
       bedCount: Number(row['bed_count'] ?? 0),
+      yesterdayPatientCount: yesterdayTotalCount,
+      percentageChange: percentageChange,
     }));
   } catch (error) {
     // Fallback: keep the ward code, no bed count.
@@ -256,10 +280,19 @@ export async function getIpdWardDistribution(
       `LIMIT 10`;
 
     const response = await executeSqlViaApi(fallbackSql, config);
+    const currentTotal = parseQueryResponse(response, (row) => Number(row['patient_count'] ?? 0))
+      .reduce((sum, count) => sum + count, 0);
+
+    const percentageChange = yesterdayTotalCount > 0
+      ? ((currentTotal - yesterdayTotalCount) / yesterdayTotalCount) * 100
+      : 0;
+
     return parseQueryResponse(response, (row) => ({
       wardName: String(row['ward_name'] ?? 'ไม่ระบุ'),
       patientCount: Number(row['patient_count'] ?? 0),
       bedCount: 0,
+      yesterdayPatientCount: yesterdayTotalCount,
+      percentageChange: percentageChange,
     }));
   }
 }

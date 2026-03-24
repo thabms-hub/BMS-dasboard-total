@@ -113,7 +113,6 @@ export function DateRangePicker({
                   selectedDate={startDate}
                   onConfirm={handleStartDateSelect}
                   onCancel={() => setIsStartCalendarOpen(false)}
-                  title="เลือกวันที่เริ่มต้น"
                 />
               </PopoverContent>
             </Popover>
@@ -142,7 +141,6 @@ export function DateRangePicker({
                   selectedDate={endDate}
                   onConfirm={handleEndDateSelect}
                   onCancel={() => setIsEndCalendarOpen(false)}
-                  title="เลือกวันที่สิ้นสุด"
                 />
               </PopoverContent>
             </Popover>

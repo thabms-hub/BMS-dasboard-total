@@ -2,6 +2,7 @@
 // BMS Session KPI Dashboard - Hourly Distribution Chart Component (T055)
 // =============================================================================
 
+import { useRef } from 'react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -15,6 +16,7 @@ import type { HourlyDistribution } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { cn } from '@/lib/utils'
 
 interface HourlyChartProps {
@@ -22,6 +24,7 @@ interface HourlyChartProps {
   isLoading: boolean
   selectedDate?: string
   className?: string
+  title?: string
 }
 
 /**
@@ -36,7 +39,9 @@ export function HourlyChart({
   isLoading,
   selectedDate,
   className,
+  title = 'การกระจายรายชั่วโมง',
 }: HourlyChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   // ---------------------------------------------------------------------------
   // Loading state
   // ---------------------------------------------------------------------------
@@ -80,17 +85,21 @@ export function HourlyChart({
   // ---------------------------------------------------------------------------
   // Chart
   // ---------------------------------------------------------------------------
+  const chartTitle = selectedDate
+    ? `Hourly Distribution for ${selectedDate}`
+    : 'Hourly Distribution'
+
   return (
     <Card className={cn(className)}>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">
-          {selectedDate
-            ? `Hourly Distribution for ${selectedDate}`
-            : 'Hourly Distribution'}
+          {chartTitle}
         </CardTitle>
+        <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+        <div ref={containerRef}>
+          <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis
@@ -123,6 +132,7 @@ export function HourlyChart({
             />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   )

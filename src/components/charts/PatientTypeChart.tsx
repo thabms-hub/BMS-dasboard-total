@@ -3,6 +3,7 @@
 // Horizontal bar chart showing insurance / patient type distribution.
 // =============================================================================
 
+import { useRef } from 'react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -12,8 +13,10 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { cn } from '@/lib/utils'
 import type { PatientTypeDistribution } from '@/types'
 
@@ -25,6 +28,7 @@ interface PatientTypeChartProps {
   data: PatientTypeDistribution[]
   isLoading: boolean
   className?: string
+  title?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -68,17 +72,34 @@ export function PatientTypeChart({
   data,
   isLoading,
   className,
+  title = 'สถิติผู้ป่วยแยกตามประเภทสิทธิ์',
 }: PatientTypeChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
   if (isLoading) {
     return (
-      <div className={cn('space-y-2', className)}>
-        <Skeleton className="h-[250px] w-full" />
-      </div>
+      <Card className={cn(className)}>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามประเภทสิทธิ์</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[250px] w-full" />
+        </CardContent>
+      </Card>
     )
   }
 
   if (!data || data.length === 0) {
-    return <EmptyState title="ไม่มีข้อมูลสิทธิ์การรักษา" />
+    return (
+      <Card className={cn(className)}>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามประเภทสิทธิ์</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState title="ไม่มีข้อมูลสิทธิ์การรักษา" />
+        </CardContent>
+      </Card>
+    )
   }
 
   // Map to chart-friendly shape
@@ -91,8 +112,14 @@ export function PatientTypeChart({
   const dynamicHeight = Math.max(250, data.length * 35)
 
   return (
-    <div className={className}>
-      <ResponsiveContainer width="100%" height={dynamicHeight}>
+    <Card className={cn(className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามประเภทสิทธิ์</CardTitle>
+        <ChartExportMenu containerRef={containerRef} data={data} title={title} />
+      </CardHeader>
+      <CardContent>
+        <div ref={containerRef}>
+          <ResponsiveContainer width="100%" height={dynamicHeight}>
         <BarChart data={chartData} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis
@@ -114,8 +141,10 @@ export function PatientTypeChart({
             fill="hsl(var(--chart-5))"
             radius={[0, 4, 4, 0]}
           />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+          </BarChart>
+        </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

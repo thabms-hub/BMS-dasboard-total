@@ -2,6 +2,7 @@
 // BMS Session KPI Dashboard - Department Horizontal Bar Chart (T063)
 // =============================================================================
 
+import { useRef } from 'react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -15,6 +16,7 @@ import type { DepartmentWorkload } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { cn } from '@/lib/utils'
 
 interface DepartmentChartProps {
@@ -22,6 +24,7 @@ interface DepartmentChartProps {
   isLoading: boolean
   onDepartmentClick?: (depcode: string) => void
   className?: string
+  title?: string
 }
 
 /**
@@ -37,7 +40,9 @@ export function DepartmentChart({
   isLoading,
   onDepartmentClick,
   className,
+  title = 'รายละเอียดการเข้ารับบริการแยกตามแผนก',
 }: DepartmentChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   // ---------------------------------------------------------------------------
   // Loading state
   // ---------------------------------------------------------------------------
@@ -77,11 +82,13 @@ export function DepartmentChart({
 
   return (
     <Card className={cn(className)}>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">รายละเอียดการเข้ารับบริการแยกตามแผนก</CardTitle>
+        <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={chartHeight}>
+        <div ref={containerRef}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart
             data={data}
             layout="vertical"
@@ -127,6 +134,7 @@ export function DepartmentChart({
             />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   )

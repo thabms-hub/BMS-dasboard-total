@@ -3,7 +3,7 @@
 // Doughnut chart: top 6 departments + "อื่นๆ" group, total in header
 // =============================================================================
 
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import {
   PieChart,
   Pie,
@@ -14,6 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -37,6 +38,7 @@ interface OpdDepartmentDonutChartProps {
   isLoading: boolean
   error?: Error | null
   className?: string
+  title?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +152,9 @@ export function OpdDepartmentDonutChart({
   isLoading,
   error,
   className,
+  title = 'ผู้ป่วยนอกเดือนนี้แยกตามแผนก',
 }: OpdDepartmentDonutChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const { slices, total } = useMemo(() => {
     if (!data || data.length === 0) return { slices: [], total: 0 }
 
@@ -217,21 +221,25 @@ export function OpdDepartmentDonutChart({
 
   return (
     <Card className={cn(className)}>
-      <CardHeader>
-        <CardTitle className="text-lg">
-          ผู้ป่วยนอกเดือนนี้แยกตามแผนก{' '}
-          <span className="mx-1 text-muted-foreground/50">|</span>{' '}
-          <span className="font-semibold text-foreground">
-            {total.toLocaleString()}
-          </span>{' '}
-          ราย
-        </CardTitle>
-        <CardDescription>
-          แยกตามคลินิก/แผนก เฉพาะ OPD (ไม่รวม IPD)
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <div>
+          <CardTitle className="text-lg">
+            ผู้ป่วยนอกเดือนนี้แยกตามแผนก{' '}
+            <span className="mx-1 text-muted-foreground/50">|</span>{' '}
+            <span className="font-semibold text-foreground">
+              {total.toLocaleString()}
+            </span>{' '}
+            ราย
+          </CardTitle>
+          <CardDescription>
+            แยกตามคลินิก/แผนก เฉพาะ OPD (ไม่รวม IPD)
+          </CardDescription>
+        </div>
+        <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-4">
+        <div ref={containerRef}>
+          <div className="flex items-center gap-4">
           {/* Donut chart */}
           <div className="shrink-0">
             <ResponsiveContainer width={160} height={160}>
@@ -259,8 +267,9 @@ export function OpdDepartmentDonutChart({
             </ResponsiveContainer>
           </div>
 
-          {/* Legend */}
-          <DonutLegend slices={slices} />
+            {/* Legend */}
+            <DonutLegend slices={slices} />
+          </div>
         </div>
       </CardContent>
     </Card>

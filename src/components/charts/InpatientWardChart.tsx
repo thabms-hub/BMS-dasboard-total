@@ -2,6 +2,7 @@
 // BMS Session KPI Dashboard - Inpatient Ward Distribution Chart
 // =============================================================================
 
+import { useRef } from 'react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -15,6 +16,7 @@ import type { IpdWardDistribution } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { cn } from '@/lib/utils'
 
 interface InpatientWardChartProps {
@@ -22,6 +24,7 @@ interface InpatientWardChartProps {
   isLoading: boolean
   error?: Error | null
   className?: string
+  title?: string
 }
 
 const MAX_LABEL_LENGTH = 20
@@ -31,7 +34,8 @@ function truncateLabel(label: string) {
   return `${label.slice(0, MAX_LABEL_LENGTH)}...`
 }
 
-export function InpatientWardChart({ data, isLoading, error, className }: InpatientWardChartProps) {
+export function InpatientWardChart({ data, isLoading, error, className, title = 'ผู้ป่วยในแยกตามตึก/วอร์ด' }: InpatientWardChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   if (isLoading) {
     return (
       <Card className={cn(className)}>
@@ -87,24 +91,28 @@ export function InpatientWardChart({ data, isLoading, error, className }: Inpati
 
   return (
     <Card className={cn(className)}>
-      <CardHeader>
-        <CardTitle className="text-sm font-medium">
-          ผู้ป่วยในแยกตามตึก/วอร์ด
-        </CardTitle>
-        <CardDescription className="text-base font-semibold text-foreground">
-          รวมทั้งสิ้น: {totalPatients.toLocaleString()} คน
-          {yesterdayPatientCount > 0 && (
-            <div className="mt-1 text-sm text-muted-foreground">
-              เมื่อวาน: {yesterdayPatientCount.toLocaleString()} คน
-              <span className={percentageChange >= 0 ? 'ml-2 text-red-600' : 'ml-2 text-green-600'}>
-                ({percentageChange >= 0 ? '+' : ''}{percentageChange.toFixed(1)}%)
-              </span>
-            </div>
-          )}
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <div>
+          <CardTitle className="text-sm font-medium">
+            ผู้ป่วยในแยกตามตึก/วอร์ด
+          </CardTitle>
+          <CardDescription className="text-base font-semibold text-foreground">
+            รวมทั้งสิ้น: {totalPatients.toLocaleString()} คน
+            {yesterdayPatientCount > 0 && (
+              <div className="mt-1 text-sm text-muted-foreground">
+                เมื่อวาน: {yesterdayPatientCount.toLocaleString()} คน
+                <span className={percentageChange >= 0 ? 'ml-2 text-red-600' : 'ml-2 text-green-600'}>
+                  ({percentageChange >= 0 ? '+' : ''}{percentageChange.toFixed(1)}%)
+                </span>
+              </div>
+            )}
+          </CardDescription>
+        </div>
+        <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={chartHeight}>
+        <div ref={containerRef}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart
             data={data}
             layout="vertical"
@@ -146,6 +154,7 @@ export function InpatientWardChart({ data, isLoading, error, className }: Inpati
             <Bar dataKey="patientCount" fill="hsl(var(--chart-4))" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   )

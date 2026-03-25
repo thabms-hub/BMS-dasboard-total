@@ -3,6 +3,7 @@
 // Vertical bar chart showing patient age group breakdown.
 // =============================================================================
 
+import { useRef } from 'react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -12,8 +13,10 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -29,6 +32,7 @@ interface AgeGroupChartProps {
   data: AgeGroupDataItem[]
   isLoading: boolean
   className?: string
+  title?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -82,17 +86,34 @@ export function AgeGroupChart({
   data,
   isLoading,
   className,
+  title = 'สถิติผู้ป่วยแยกตามกลุ่มอายุ',
 }: AgeGroupChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
   if (isLoading) {
     return (
-      <div className={cn('space-y-2', className)}>
-        <Skeleton className="h-[300px] w-full" />
-      </div>
+      <Card className={cn(className)}>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามกลุ่มอายุ</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[300px] w-full" />
+        </CardContent>
+      </Card>
     )
   }
 
   if (!data || data.length === 0) {
-    return <EmptyState title="ไม่มีข้อมูลกลุ่มอายุ" />
+    return (
+      <Card className={cn(className)}>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามกลุ่มอายุ</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState title="ไม่มีข้อมูลกลุ่มอายุ" />
+        </CardContent>
+      </Card>
+    )
   }
 
   // Sort according to the canonical age-group order
@@ -103,8 +124,13 @@ export function AgeGroupChart({
   })
 
   return (
-    <div className={className}>
-      <ResponsiveContainer width="100%" height={300}>
+    <Card ref={containerRef} className={cn(className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามกลุ่มอายุ</CardTitle>
+        <ChartExportMenu containerRef={containerRef} data={data} title={title} />
+      </CardHeader>
+      <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
         <BarChart data={sortedData}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis
@@ -123,8 +149,9 @@ export function AgeGroupChart({
             fill="hsl(var(--chart-4))"
             radius={[4, 4, 0, 0]}
           />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   )
 }

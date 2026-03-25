@@ -3,6 +3,7 @@
 // Donut chart showing gender breakdown of patient visits.
 // =============================================================================
 
+import { useRef } from 'react'
 import {
   ResponsiveContainer,
   PieChart,
@@ -11,9 +12,11 @@ import {
   Tooltip,
   Legend,
 } from 'recharts'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/dashboard/EmptyState'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -30,6 +33,7 @@ interface GenderChartProps {
   data: GenderDataItem[]
   isLoading: boolean
   className?: string
+  title?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -101,17 +105,35 @@ function CustomTooltip({
 // Component
 // ---------------------------------------------------------------------------
 
-export function GenderChart({ data, isLoading, className }: GenderChartProps) {
+export function GenderChart({ data, isLoading, className, title = 'สถิติผู้ป่วยแยกตามเพศ' }: GenderChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
   if (isLoading) {
     return (
-      <div className={cn('flex items-center justify-center', className)}>
-        <Skeleton className="h-[200px] w-[200px] rounded-full" />
-      </div>
+      <Card className={cn(className)}>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามเพศ</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center">
+            <Skeleton className="h-[200px] w-[200px] rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
   if (!data || data.length === 0) {
-    return <EmptyState title="ไม่มีข้อมูลประชากร" />
+    return (
+      <Card className={cn(className)}>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามเพศ</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState title="ไม่มีข้อมูลประชากร" />
+        </CardContent>
+      </Card>
+    )
   }
 
   // Normalise labels and compute percentages
@@ -130,8 +152,14 @@ export function GenderChart({ data, isLoading, className }: GenderChartProps) {
   )
 
   return (
-    <div className={cn('flex flex-col items-center', className)}>
-      <ResponsiveContainer width="100%" height={300}>
+    <Card ref={containerRef} className={cn(className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามเพศ</CardTitle>
+        <ChartExportMenu containerRef={containerRef} data={data} title={title} />
+      </CardHeader>
+      <CardContent>
+          <div className="flex flex-col items-center">
+            <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
             data={chartData}
@@ -152,13 +180,15 @@ export function GenderChart({ data, isLoading, className }: GenderChartProps) {
           </Pie>
           <Tooltip content={<CustomTooltip />} />
           <Legend verticalAlign="bottom" />
-        </PieChart>
-      </ResponsiveContainer>
-      {allFromVisitRecords && (
-        <Badge variant="secondary" className="mt-2">
-          ข้อมูลจากบันทึกการเข้ารับบริการ
-        </Badge>
-      )}
-    </div>
+            </PieChart>
+          </ResponsiveContainer>
+            {allFromVisitRecords && (
+              <Badge variant="secondary" className="mt-2">
+                ข้อมูลจากบันทึกการเข้ารับบริการ
+              </Badge>
+            )}
+          </div>
+      </CardContent>
+    </Card>
   )
 }

@@ -208,7 +208,7 @@ Daily snapshot of inpatient census (for trending).
 
 | Column | Type | Purpose |
 |--------|------|---------|
-| `snapshot_date` | DATE | Date of snapshot |
+| `snap_date` | DATE | Date of snapshot |
 | `ward` | CHAR | Ward code |
 | `total_count` | INT | Patient count on that date |
 

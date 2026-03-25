@@ -319,7 +319,7 @@ export default function Overview() {
         <Button
           variant="outline"
           size="sm"
-          className="mt-2 gap-1.5 sm:mt-0 dark:bg-orange-500/5 dark:border-orange-400/60 dark:text-orange-300 dark:hover:bg-orange-500/15 dark:hover:border-orange-300 dark:hover:text-orange-200"
+          className="mt-2 gap-1.5 sm:mt-0 text-blue dark:text-white dark:bg-orange-500/5 dark:border-orange-400/60 dark:hover:bg-orange-500/15 dark:hover:border-orange-300"
           onClick={handleRefresh}
           disabled={isRefreshing}
         >
@@ -362,16 +362,16 @@ export default function Overview() {
       {/* 4. OPD Donut + Weekly Trend + Top Doctors  (3 / 6 / 3)             */}
       {/* ------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* OPD Department Donut (3/12) */}
+        {/* OPD Department Donut (4/12) */}
         <OpdDepartmentDonutChart
           data={opdDepartmentData ?? []}
           isLoading={isOpdDeptLoading}
           error={isOpdDeptError ? opdDeptError : null}
-          className="lg:col-span-3"
+          className="lg:col-span-4"
         />
 
-        {/* Weekly Visit Trend (6/12) */}
-        <Card className="lg:col-span-6">
+        {/* Weekly Visit Trend (5/12) */}
+        <Card className="lg:col-span-5">
           <CardHeader>
             <CardTitle className="text-lg">การเข้ารับบริการสัปดาห์นี้</CardTitle>
             <CardDescription>

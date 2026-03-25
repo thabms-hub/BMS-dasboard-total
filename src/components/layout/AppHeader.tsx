@@ -3,36 +3,18 @@
 // Professional navigation header — dark blue signature gradient + theme toggle.
 // =============================================================================
 
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import {
-  Building2,
-  LayoutDashboard,
-  LogOut,
-  Moon,
-  Sun,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { LogOut, Moon, Sun } from 'lucide-react';
 
-// ---------------------------------------------------------------------------
-// Navigation tab definitions
-// ---------------------------------------------------------------------------
-
-interface NavTab {
-  label: string;
-  path: string;
-  icon: LucideIcon;
-}
-
-const NAV_TABS: NavTab[] = [
-  { label: 'ภาพรวม', path: '/', icon: LayoutDashboard },
-  { label: 'แนวโน้ม', path: '/trends', icon: TrendingUp },
-  { label: 'แผนก', path: '/departments', icon: Building2 },
-  { label: 'ข้อมูลประชากร', path: '/demographics', icon: Users },
-];
+// Page title map
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'ภาพรวม',
+  '/trends': 'แนวโน้ม',
+  '/departments': 'แผนก',
+  '/demographics': 'ข้อมูลประชากร',
+};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -48,10 +30,12 @@ export function AppHeader() {
 
   const userInitial = session?.userInfo.name?.charAt(0).toUpperCase() ?? '?';
 
+  const pageTitle = PAGE_TITLES[location.pathname] ?? '';
+
   return (
     <header className="signature-gradient sticky top-0 z-50 flex h-16 items-center justify-between px-6 shadow-md">
       {/* ----------------------------------------------------------------- */}
-      {/* Left: Hospital logo + title                                       */}
+      {/* Left: Hospital logo + title + current page                        */}
       {/* ----------------------------------------------------------------- */}
       <div className="flex items-center gap-3">
         <img
@@ -63,42 +47,11 @@ export function AppHeader() {
           <h1 className="text-base font-extrabold leading-tight tracking-tight text-white">
             {session?.userInfo.location || 'โรงพยาบาล'}
           </h1>
+          {pageTitle && (
+            <span className="text-xs text-white/60 leading-tight">{pageTitle}</span>
+          )}
         </div>
       </div>
-
-      {/* ----------------------------------------------------------------- */}
-      {/* Center: Navigation tabs with icons                                */}
-      {/* ----------------------------------------------------------------- */}
-      <nav className="flex items-center gap-1">
-        {NAV_TABS.map((tab) => {
-          const isActive =
-            tab.path === '/'
-              ? location.pathname === '/'
-              : location.pathname.startsWith(tab.path);
-
-          const Icon = tab.icon;
-
-          return (
-            <Link
-              key={tab.path}
-              to={tab.path}
-              className={
-                'relative flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-200 ' +
-                (isActive
-                  ? 'bg-white/15 text-white'
-                  : 'text-white/60 hover:bg-white/10 hover:text-white/90')
-              }
-            >
-              <Icon className="h-4 w-4" />
-              {tab.label}
-              {/* Active indicator bar */}
-              {isActive && (
-                <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-white/70" />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
 
       {/* ----------------------------------------------------------------- */}
       {/* Right: Theme toggle, connection status, DB badge, user, disconnect */}

@@ -175,6 +175,8 @@ export interface IpdWardDistribution {
   wardName: string;
   patientCount: number;
   bedCount: number;
+  yesterdayPatientCount?: number;
+  percentageChange?: number;
 }
 
 /** Recent visit record for the overview dashboard */

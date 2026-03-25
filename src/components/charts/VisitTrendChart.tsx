@@ -2,6 +2,7 @@
 // BMS Session KPI Dashboard - Visit Trend Chart Component (T054)
 // =============================================================================
 
+import { useRef } from 'react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -17,6 +18,7 @@ import type { VisitTrend } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { cn } from '@/lib/utils'
 
 interface VisitTrendChartProps {
@@ -24,6 +26,7 @@ interface VisitTrendChartProps {
   isLoading: boolean
   onDateClick?: (date: string) => void
   className?: string
+  title?: string
 }
 
 /**
@@ -42,7 +45,9 @@ export function VisitTrendChart({
   isLoading,
   onDateClick,
   className,
+  title = 'แนวโน้มการเข้ารับบริการรายวัน',
 }: VisitTrendChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   // ---------------------------------------------------------------------------
   // Loading state
   // ---------------------------------------------------------------------------
@@ -79,12 +84,13 @@ export function VisitTrendChart({
   // Chart
   // ---------------------------------------------------------------------------
   return (
-    <Card className={cn(className)}>
-      <CardHeader>
+    <Card ref={containerRef} className={cn(className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">แนวโน้มการเข้ารับบริการรายวัน</CardTitle>
+        <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={350}>
           <BarChart
             data={data}
             onClick={(state: Record<string, unknown>) => {

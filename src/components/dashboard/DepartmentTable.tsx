@@ -19,7 +19,7 @@ import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import { getDepartmentWorkload } from '@/services/kpiService'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 5
 
 export function DepartmentTable() {
   const { connectionConfig, session } = useBmsSessionContext()

@@ -19,6 +19,8 @@ import {
   BarChart3,
   Stethoscope,
   Building2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -85,6 +87,7 @@ export default function Overview() {
   const { session, connectionConfig, refreshSession } = useBmsSessionContext()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [recentVisitsPage, setRecentVisitsPage] = useState(0)
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
@@ -482,9 +485,9 @@ export default function Overview() {
       {/* ------------------------------------------------------------------- */}
       {/* 6. Department Workload + Recent Visits                               */}
       {/* ------------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-        {/* Left: Department Workload (2/4 width) */}
-        <Card className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Left: Department Workload (4/12 width) */}
+        <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle className="text-lg">ปริมาณงานแผนก</CardTitle>
             <CardDescription>
@@ -501,11 +504,11 @@ export default function Overview() {
           data={ipdWardDistribution ?? []}
           isLoading={isWardLoading}
           error={isWardError ? wardError : null}
-          className="lg:col-span-1"
+          className="lg:col-span-5"
         />
 
-        {/* Right: Recent Visits (1/4 width) */}
-        <Card className="lg:col-span-1">
+        {/* Right: Recent Visits (3/12 width — matches Top Doctors) */}
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-lg">การเข้ารับบริการล่าสุด</CardTitle>
             <CardDescription>10 รายการล่าสุดที่บันทึก</CardDescription>
@@ -524,29 +527,54 @@ export default function Overview() {
                 ))}
               </div>
             ) : recentVisits && recentVisits.length > 0 ? (
-              <div className="space-y-0 divide-y">
-                {recentVisits.map((visit, index) => (
-                  <div
-                    key={`${visit.vn}-${index}`}
-                    className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
-                  >
-                    <Badge
-                      variant="secondary"
-                      className="shrink-0 font-mono text-[10px] tabular-nums"
+              <>
+                <div className="space-y-0 divide-y">
+                  {recentVisits.slice(recentVisitsPage * 5, (recentVisitsPage + 1) * 5).map((visit, index) => (
+                    <div
+                      key={`${visit.vn}-${index}`}
+                      className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
                     >
-                      {formatVisitTime(visit.vsttime)}
-                    </Badge>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {visit.departmentName}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {visit.doctorName}
-                      </p>
+                      <Badge
+                        variant="secondary"
+                        className="shrink-0 font-mono text-[10px] tabular-nums"
+                      >
+                        {formatVisitTime(visit.vsttime)}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {visit.departmentName}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {visit.doctorName}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {recentVisits.length > 5 && (
+                  <div className="flex items-center justify-between pt-3 text-sm text-muted-foreground">
+                    <span>
+                      หน้า {recentVisitsPage + 1} / {Math.ceil(recentVisits.length / 5)}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setRecentVisitsPage((p) => p - 1)}
+                        disabled={recentVisitsPage === 0}
+                        className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setRecentVisitsPage((p) => p + 1)}
+                        disabled={recentVisitsPage >= Math.ceil(recentVisits.length / 5) - 1}
+                        className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">
                 ไม่มีการเข้ารับบริการล่าสุดที่บันทึก

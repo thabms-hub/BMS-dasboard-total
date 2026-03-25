@@ -14,15 +14,35 @@ import {
   LayoutDashboard,
   Leaf,
   Scissors,
-  Smile,
   SmilePlus,
   Siren,
   Stethoscope,
   TrendingUp,
   Users,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import type { LucideIcon, LucideProps } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+function ToothIcon({ className, size = 24, ...props }: LucideProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...props}
+    >
+      <path d="M12 5.5c-1.5-2-3.5-3-5-2.5C4.5 4 3 6.5 3 9c0 2 .5 3.5 1.5 4.5.7.7 1 2 1.2 3.5l.3 3c.1.6.6 1 1.2 1 .5 0 1-.4 1.1-.9L9 17c.3-1.2.7-2 1-2.5.3.5.7 1.3 1 2.5l.7 3.1c.1.5.6.9 1.1.9.6 0 1.1-.4 1.2-1l.3-3c.2-1.5.5-2.8 1.2-3.5C16.5 12.5 17 11 17 9c0-2.5-1.5-5-4-5.5-1.5-.5-3.5.5-4 2z" />
+      <path d="M9 5.5c1-1 2.5-1.5 3 0" />
+    </svg>
+  )
+}
 
 interface SubNavItem {
   label: string
@@ -50,7 +70,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: 'สูติกรรม', path: '/departments/obstetrics', icon: Baby },
       { label: 'นรีเวชกรรม', path: '/departments/gynecology', icon: HeartPulse },
       { label: 'กุมารเวชกรรม', path: '/departments/pediatrics', icon: SmilePlus },
-      { label: 'ทันตกรรม', path: '/departments/dentistry', icon: Smile },
+      { label: 'ทันตกรรม', path: '/departments/dentistry', icon: ToothIcon as unknown as LucideIcon },
       { label: 'แพทย์แผนไทย', path: '/departments/thai-traditional', icon: Leaf },
       { label: 'เวชศาสตร์ฉุกเฉิน', path: '/departments/emergency', icon: Siren },
     ],
@@ -140,7 +160,7 @@ export function AppSidebar() {
     <>
       <aside
         className={cn(
-          'signature-gradient flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden h-full',
+          'signature-gradient flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden h-full relative z-20',
           collapsed ? 'w-14' : 'w-56',
         )}
       >
@@ -295,7 +315,7 @@ export function AppSidebar() {
       {/* ── Collapsed flyout panel (fixed, rendered outside aside) ── */}
       {collapsed && flyoutItem && (
         <div
-          className="fixed z-50 ml-1"
+          className="fixed z-[200] ml-1"
           style={{ left: 56, top: flyoutY }}
           onMouseEnter={keepFlyout}
           onMouseLeave={closeFlyout}

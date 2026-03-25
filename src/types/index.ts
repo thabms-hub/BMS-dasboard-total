@@ -234,3 +234,40 @@ export interface OverviewStats {
   totalDoctors: number
   totalDepartments: number
 }
+
+/** Dentistry case detail record */
+export interface DentistryCase {
+  hn: string
+  vn: string
+  vstdate: string
+  ttcode: string
+  an: string
+  tmName: string
+  doctorName: string
+  helperName: string
+  patientName: string
+  visitTypeName: string
+  pttype?: string
+}
+
+/** Dentistry case grouped by visit type for chart */
+export interface DentistryVisitTypeDistribution {
+  visitTypeName: string
+  caseCount: number
+}
+
+/** Dentistry cases grouped by insurance type for pie chart */
+export interface DentistryInsuranceDistribution {
+  insuranceType: string
+  patientCount: number
+}
+
+/** Dentistry department summary */
+export interface DentistrySummary {
+  totalCases: number
+  totalVisits: number
+  totalIPDCases: number
+  casesByVisitType: DentistryVisitTypeDistribution[]
+  casesByInsurance: DentistryInsuranceDistribution[]
+  cases: DentistryCase[]
+}

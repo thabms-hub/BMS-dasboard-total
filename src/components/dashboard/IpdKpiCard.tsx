@@ -135,24 +135,19 @@ export function IpdKpiCard({ data, isLoading, isError, error, onRetry }: IpdKpiC
             </div>
 
             {/* Admit / Discharge breakdown */}
-            <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-              <span>
-                Admit วันนี้{' '}
-                <span className="font-semibold text-foreground">
-                  {todayAdmitted.toLocaleString()}
-                </span>
-              </span>
-              <span className="text-sm font-medium text-muted-foreground/60">•</span>
-              <span>
-                จำหน่ายวันนี้{' '}
-                <span className="font-semibold text-foreground">
-                  {todayDischarged.toLocaleString()}
-                </span>
-              </span>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="flex flex-col items-center gap-0.5 rounded-lg bg-emerald-500/10 px-2 py-2">
+                <span className="text-base font-bold text-emerald-600">{todayAdmitted.toLocaleString()}</span>
+                <span className="text-[10px] text-muted-foreground">Admit วันนี้</span>
+              </div>
+              <div className="flex flex-col items-center gap-0.5 rounded-lg bg-orange-500/10 px-2 py-2">
+                <span className="text-base font-bold text-orange-600">{todayDischarged.toLocaleString()}</span>
+                <span className="text-[10px] text-muted-foreground">จำหน่ายวันนี้</span>
+              </div>
             </div>
 
             {/* vs yesterday */}
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground">
               เมื่อวาน{' '}
               <span className="font-medium text-foreground">
                 {yesterdayTotal.toLocaleString()}

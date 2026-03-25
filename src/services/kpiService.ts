@@ -249,17 +249,15 @@ export async function getIpdWardDistribution(
   // different column names. We attempt the richer join first, then fallback
   // to a safer query that only relies on the `ipt` table.
   const joinSql =
-    `SELECT COALESCE(w.name, i.ward, 'ไม่ระบุ') as ward_name, COUNT(*) as patient_count, COALESCE(w.bedcount, 0) as bed_count ` +
-    `FROM ward w  ` +
-    `LEFT JOIN ipt i ON i.ward = w.ward ` +
-    `WHERE w.ward_active ='Y' AND (i.dchdate IS NULL OR i.confirm_discharge ='N') ` +
-    `GROUP BY w.name, i.ward, w.bedcount ` +
-    `ORDER BY patient_count DESC ` +
-    `LIMIT 10`;
+    `SELECT w.ward as wardcode, w.name as wardname, COUNT(DISTINCT ipt.an) as onward_count ` +
+    `FROM ward w, ipt ` +
+    `WHERE w.ward = ipt.ward AND ipt.confirm_discharge = 'N' ` +
+    `GROUP BY w.ward, wardname ` +
+    `ORDER BY onward_count DESC`;
 
   try {
     const response = await executeSqlViaApi(joinSql, config);
-    const currentTotal = parseQueryResponse(response, (row) => Number(row['patient_count'] ?? 0))
+    const currentTotal = parseQueryResponse(response, (row) => Number(row['onward_count'] ?? 0))
       .reduce((sum, count) => sum + count, 0);
 
     const percentageChange = yesterdayTotalCount > 0
@@ -267,21 +265,21 @@ export async function getIpdWardDistribution(
       : 0;
 
     return parseQueryResponse(response, (row) => ({
-      wardName: String(row['ward_name'] ?? 'ไม่ระบุ'),
-      patientCount: Number(row['patient_count'] ?? 0),
-      bedCount: Number(row['bed_count'] ?? 0),
+      wardName: String(row['wardname'] ?? 'ไม่ระบุ'),
+      wardCode: String(row['wardcode'] ?? ''),
+      patientCount: Number(row['onward_count'] ?? 0),
+      bedCount: 0,
       yesterdayPatientCount: yesterdayTotalCount,
       percentageChange: percentageChange,
     }));
   } catch (error) {
     // Fallback: keep the ward code, no bed count.
     const fallbackSql =
-      `SELECT COALESCE(ward, 'ไม่ระบุ') as ward_name, COUNT(*) as patient_count ` +
+      `SELECT ward as wardcode, COALESCE(ward, 'ไม่ระบุ') as ward_name, COUNT(DISTINCT an) as patient_count ` +
       `FROM ipt ` +
       `WHERE confirm_discharge = 'N' ` +
-      `GROUP BY ward_name ` +
-      `ORDER BY patient_count DESC ` +
-      `LIMIT 10`;
+      `GROUP BY ward ` +
+      `ORDER BY patient_count DESC`;
 
     const response = await executeSqlViaApi(fallbackSql, config);
     const currentTotal = parseQueryResponse(response, (row) => Number(row['patient_count'] ?? 0))
@@ -293,12 +291,53 @@ export async function getIpdWardDistribution(
 
     return parseQueryResponse(response, (row) => ({
       wardName: String(row['ward_name'] ?? 'ไม่ระบุ'),
+      wardCode: String(row['wardcode'] ?? ''),
       patientCount: Number(row['patient_count'] ?? 0),
       bedCount: 0,
       yesterdayPatientCount: yesterdayTotalCount,
       percentageChange: percentageChange,
     }));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Appointment stats for today
+// ---------------------------------------------------------------------------
+
+export interface AppointmentStats {
+  totalAppointments: number;
+  attended: number;
+  notAttended: number;
+  attendanceRate: number;
+}
+
+/**
+ * Today's appointment statistics: total, attended, not attended, and rate.
+ */
+export async function getAppointmentStats(
+  config: ConnectionConfig,
+): Promise<AppointmentStats> {
+  const [totalResp, attendedResp, notAttendedResp] = await Promise.all([
+    executeSqlViaApi(
+      `SELECT count(distinct hn) as total FROM oapp WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = current_date`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT count(distinct ovst.hn) as attended FROM oapp, ovst WHERE oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate AND (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = current_date`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT count(distinct oapp.hn) as not_attended FROM oapp LEFT JOIN ovst ON oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = current_date AND ovst.hn IS NULL`,
+      config,
+    ),
+  ]);
+
+  const total = parseQueryResponse(totalResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const attended = parseQueryResponse(attendedResp, (row) => Number(row['attended'] ?? 0))[0] ?? 0;
+  const notAttended = parseQueryResponse(notAttendedResp, (row) => Number(row['not_attended'] ?? 0))[0] ?? 0;
+  const attendanceRate = total > 0 ? Math.round((attended / total) * 100) : 0;
+
+  return { totalAppointments: total, attended, notAttended, attendanceRate };
 }
 
 /**
@@ -802,7 +841,7 @@ export async function getWeeklyMiniTrend(
 }
 
 /**
- * Get top 5 doctors by patient count for the current month.
+ * Get top 10 doctors by patient count for the current month.
  */
 export async function getTopDoctorsThisMonth(
   config: ConnectionConfig,
@@ -815,7 +854,7 @@ export async function getTopDoctorsThisMonth(
     `WHERE ${queryBuilder.dateFormat(dbType, 'o.vstdate', '%Y-%m')} = ${queryBuilder.dateFormat(dbType, queryBuilder.currentDate(dbType), '%Y-%m')} ` +
     `GROUP BY o.doctor, d.name ` +
     `ORDER BY patient_count DESC ` +
-    `LIMIT 5`;
+    `LIMIT 10`;
   const response = await executeSqlViaApi(sql, config);
   return parseQueryResponse(response, (row) => ({
     doctorCode: String(row['doctor_code'] ?? ''),

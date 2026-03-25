@@ -3,31 +3,30 @@
 // =============================================================================
 
 import { useCallback } from 'react'
-import { Building2 } from 'lucide-react'
-import { KpiCard } from '@/components/dashboard/KpiCard'
 import { OpdKpiCard } from '@/components/dashboard/OpdKpiCard'
 import { IpdKpiCard } from '@/components/dashboard/IpdKpiCard'
 import { ErKpiCard } from '@/components/dashboard/ErKpiCard'
+import { AppointmentKpiCard } from '@/components/dashboard/AppointmentKpiCard'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
-import { getKpiSummary, getOpdVisitDetail, getIpdVisitDetail, getErVisitDetail } from '@/services/kpiService'
+import { getOpdVisitDetail, getIpdVisitDetail, getErVisitDetail, getAppointmentStats } from '@/services/kpiService'
 
 export function KpiCardGrid() {
   const { connectionConfig, session } = useBmsSessionContext()
   const enabled = connectionConfig !== null && session !== null
 
-  const kpiFn = useCallback(
-    () => getKpiSummary(connectionConfig!, session!.databaseType),
-    [connectionConfig, session],
+  const appointmentFn = useCallback(
+    () => getAppointmentStats(connectionConfig!),
+    [connectionConfig],
   )
   const {
-    data: kpiSummary,
-    isLoading: isKpiLoading,
-    isError: isKpiError,
-    error: kpiError,
-    execute: retryKpi,
-  } = useQuery<Awaited<ReturnType<typeof getKpiSummary>>>({
-    queryFn: kpiFn,
+    data: appointmentData,
+    isLoading: isAppointmentLoading,
+    isError: isAppointmentError,
+    error: appointmentError,
+    execute: retryAppointment,
+  } = useQuery<Awaited<ReturnType<typeof getAppointmentStats>>>({
+    queryFn: appointmentFn,
     enabled,
   })
 
@@ -99,16 +98,12 @@ export function KpiCardGrid() {
         error={erError?.message}
         onRetry={retryEr}
       />
-      <KpiCard
-        title="แผนกที่มีบริการ"
-        value={kpiSummary?.activeDepartmentCount ?? null}
-        icon={<Building2 className="h-5 w-5" />}
-        isLoading={isKpiLoading}
-        isError={isKpiError}
-        error={kpiError?.message}
-        onRetry={retryKpi}
-        description="จำนวนแผนกที่มีผู้ป่วยวันนี้"
-        accentColor="text-green-500"
+      <AppointmentKpiCard
+        data={appointmentData ?? null}
+        isLoading={isAppointmentLoading}
+        isError={isAppointmentError}
+        error={appointmentError?.message}
+        onRetry={retryAppointment}
       />
     </div>
   )

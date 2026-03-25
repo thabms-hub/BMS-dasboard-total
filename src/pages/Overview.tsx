@@ -88,6 +88,7 @@ export default function Overview() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [recentVisitsPage, setRecentVisitsPage] = useState(0)
+  const [doctorsPage, setDoctorsPage] = useState(0)
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
@@ -440,8 +441,8 @@ export default function Overview() {
         {/* Top Doctors This Month (3/12) */}
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-lg">แพทย์ยอดนิยมในเดือนนี้</CardTitle>
-            <CardDescription>เรียงตามจำนวนผู้ป่วย</CardDescription>
+            <CardTitle className="text-lg">TOP 10 Doctor</CardTitle>
+            <CardDescription>เรียงตามจำนวนผู้ป่วยเดือนนี้</CardDescription>
           </CardHeader>
           <CardContent>
             {isDoctorsLoading ? (
@@ -455,24 +456,47 @@ export default function Overview() {
                 ))}
               </div>
             ) : topDoctors && topDoctors.length > 0 ? (
-              <div className="space-y-3">
-                {topDoctors.map((doc, index) => (
-                  <div
-                    key={doc.doctorCode}
-                    className="flex items-center gap-3"
-                  >
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                      {index + 1}
+              <>
+                <div className="space-y-3">
+                  {topDoctors.slice(doctorsPage * 5, (doctorsPage + 1) * 5).map((doc, index) => (
+                    <div
+                      key={doc.doctorCode}
+                      className="flex items-center gap-3"
+                    >
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                        {doctorsPage * 5 + index + 1}
+                      </div>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                        {doc.doctorName}
+                      </span>
+                      <span className="shrink-0 text-sm font-semibold text-muted-foreground">
+                        {doc.patientCount.toLocaleString()}
+                      </span>
                     </div>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                      {doc.doctorName}
-                    </span>
-                    <span className="shrink-0 text-sm font-semibold text-muted-foreground">
-                      {doc.patientCount.toLocaleString()}
-                    </span>
+                  ))}
+                </div>
+                {topDoctors.length > 5 && (
+                  <div className="flex items-center justify-between pt-3 text-sm text-muted-foreground">
+                    <span>หน้า {doctorsPage + 1} / {Math.ceil(Math.min(topDoctors.length, 10) / 5)}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setDoctorsPage((p) => p - 1)}
+                        disabled={doctorsPage === 0}
+                        className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDoctorsPage((p) => p + 1)}
+                        disabled={doctorsPage >= Math.ceil(Math.min(topDoctors.length, 10) / 5) - 1}
+                        className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">
                 ไม่มีกิจกรรมของแพทย์ในเดือนนี้

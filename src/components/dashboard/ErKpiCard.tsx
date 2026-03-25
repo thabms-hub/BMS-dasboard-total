@@ -137,36 +137,27 @@ export function ErKpiCard({ data, isLoading, isError, error, onRetry }: ErKpiCar
               )}
             </div>
 
-            {/* Triage breakdown by color — horizontal */}
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
-                <span>แดง</span>
-                <span className="font-semibold text-foreground">{redCount.toLocaleString()}</span>
+            {/* Triage breakdown — colored boxes */}
+            <div className="mt-3 grid grid-cols-5 gap-1">
+              <div className="flex flex-col items-center gap-0.5 rounded-lg bg-red-500/15 px-1 py-2">
+                <span className="text-sm font-bold text-red-600">{redCount.toLocaleString()}</span>
+                <span className="text-[9px] text-muted-foreground">แดง</span>
               </div>
-              <span className="text-muted-foreground/30">•</span>
-              <div className="flex items-center gap-1">
-                <span className="inline-flex h-2 w-2 rounded-full bg-pink-500" />
-                <span>ชมพู</span>
-                <span className="font-semibold text-foreground">{pinkCount.toLocaleString()}</span>
+              <div className="flex flex-col items-center gap-0.5 rounded-lg bg-pink-500/15 px-1 py-2">
+                <span className="text-sm font-bold text-pink-600">{pinkCount.toLocaleString()}</span>
+                <span className="text-[9px] text-muted-foreground">ชมพู</span>
               </div>
-              <span className="text-muted-foreground/30">•</span>
-              <div className="flex items-center gap-1">
-                <span className="inline-flex h-2 w-2 rounded-full bg-yellow-500" />
-                <span>เหลือง</span>
-                <span className="font-semibold text-foreground">{yellowCount.toLocaleString()}</span>
+              <div className="flex flex-col items-center gap-0.5 rounded-lg bg-yellow-400/20 px-1 py-2">
+                <span className="text-sm font-bold text-yellow-600">{yellowCount.toLocaleString()}</span>
+                <span className="text-[9px] text-muted-foreground">เหลือง</span>
               </div>
-              <span className="text-muted-foreground/30">•</span>
-              <div className="flex items-center gap-1">
-                <span className="inline-flex h-2 w-2 rounded-full bg-green-500" />
-                <span>เขียว</span>
-                <span className="font-semibold text-foreground">{greenCount.toLocaleString()}</span>
+              <div className="flex flex-col items-center gap-0.5 rounded-lg bg-green-500/15 px-1 py-2">
+                <span className="text-sm font-bold text-green-600">{greenCount.toLocaleString()}</span>
+                <span className="text-[9px] text-muted-foreground">เขียว</span>
               </div>
-              <span className="text-muted-foreground/30">•</span>
-              <div className="flex items-center gap-1">
-                <span className="inline-flex h-2 w-2 rounded-full bg-gray-400" />
-                <span>ขาว</span>
-                <span className="font-semibold text-foreground">{whiteCount.toLocaleString()}</span>
+              <div className="flex flex-col items-center gap-0.5 rounded-lg bg-gray-400/15 px-1 py-2">
+                <span className="text-sm font-bold text-gray-500">{whiteCount.toLocaleString()}</span>
+                <span className="text-[9px] text-muted-foreground">ขาว</span>
               </div>
             </div>
 

@@ -173,6 +173,7 @@ export interface PatientTypeDistribution {
 
 export interface IpdWardDistribution {
   wardName: string;
+  wardCode?: string;
   patientCount: number;
   bedCount: number;
   yesterdayPatientCount?: number;

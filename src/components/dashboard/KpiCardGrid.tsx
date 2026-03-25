@@ -84,12 +84,12 @@ export function KpiCardGrid() {
         error={opdError?.message}
         onRetry={retryOpd}
       />
-      <IpdKpiCard
-        data={ipdDetail ?? null}
-        isLoading={isIpdLoading}
-        isError={isIpdError}
-        error={ipdError?.message}
-        onRetry={retryIpd}
+      <AppointmentKpiCard
+        data={appointmentData ?? null}
+        isLoading={isAppointmentLoading}
+        isError={isAppointmentError}
+        error={appointmentError?.message}
+        onRetry={retryAppointment}
       />
       <ErKpiCard
         data={erDetail ?? null}
@@ -98,12 +98,12 @@ export function KpiCardGrid() {
         error={erError?.message}
         onRetry={retryEr}
       />
-      <AppointmentKpiCard
-        data={appointmentData ?? null}
-        isLoading={isAppointmentLoading}
-        isError={isAppointmentError}
-        error={appointmentError?.message}
-        onRetry={retryAppointment}
+      <IpdKpiCard
+        data={ipdDetail ?? null}
+        isLoading={isIpdLoading}
+        isError={isIpdError}
+        error={ipdError?.message}
+        onRetry={retryIpd}
       />
     </div>
   )

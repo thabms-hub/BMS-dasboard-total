@@ -2,7 +2,7 @@
 // BMS Session KPI Dashboard - Overview Page (Rich Command Center)
 // =============================================================================
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import {
   RefreshCw,
   Database,
@@ -24,8 +24,8 @@ import {
 } from 'lucide-react'
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   Tooltip,
 } from 'recharts'
@@ -40,6 +40,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { KpiCardGrid } from '@/components/dashboard/KpiCardGrid'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { DepartmentTable } from '@/components/dashboard/DepartmentTable'
 import { InpatientWardChart } from '@/components/charts/InpatientWardChart'
 import { OpdDepartmentDonutChart } from '@/components/charts/OpdDepartmentDonutChart'
@@ -89,6 +90,7 @@ export default function Overview() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [recentVisitsPage, setRecentVisitsPage] = useState(0)
   const [doctorsPage, setDoctorsPage] = useState(0)
+  const weeklyTrendRef = useRef<HTMLDivElement>(null)
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
@@ -375,14 +377,21 @@ export default function Overview() {
         />
 
         {/* Weekly Visit Trend (5/12) */}
-        <Card className="lg:col-span-5">
-          <CardHeader>
-            <CardTitle className="text-lg">การเข้ารับบริการสัปดาห์นี้</CardTitle>
-            <CardDescription>
-              {isTrendLoading
-                ? 'กำลังโหลดข้อมูลแนวโน้ม...'
-                : `${weeklyTotal.toLocaleString()} จำนวนการเข้ารับบริการใน 7 วันที่ผ่านมา`}
-            </CardDescription>
+        <Card ref={weeklyTrendRef} className="lg:col-span-5">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle className="text-lg">การเข้ารับบริการสัปดาห์นี้</CardTitle>
+              <CardDescription>
+                {isTrendLoading
+                  ? 'กำลังโหลดข้อมูลแนวโน้ม...'
+                  : `${weeklyTotal.toLocaleString()} จำนวนการเข้ารับบริการใน 7 วันที่ผ่านมา`}
+              </CardDescription>
+            </div>
+            <ChartExportMenu
+              containerRef={weeklyTrendRef}
+              data={weeklyTrend ?? []}
+              title="การเข้ารับบริการสัปดาห์นี้"
+            />
           </CardHeader>
           <CardContent>
             {isTrendLoading ? (
@@ -391,11 +400,16 @@ export default function Overview() {
               </div>
             ) : weeklyTrend && weeklyTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={weeklyTrend}>
+                <AreaChart data={weeklyTrend}>
+                  <defs>
+                    <linearGradient id="weeklyVisitGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(199 89% 48%)" stopOpacity={0.7} />
+                      <stop offset="95%" stopColor="hsl(199 89% 48%)" stopOpacity={0.05} />
+                    </linearGradient>
+                  </defs>
                   <XAxis
                     dataKey="date"
                     tickFormatter={(val: string) => {
-                      // Show just day part (e.g. "Mar 15")
                       const parts = val.split('-')
                       if (parts.length === 3) {
                         const d = new Date(val)
@@ -421,14 +435,17 @@ export default function Overview() {
                     }}
                     cursor={false}
                   />
-                  <Bar
+                  <Area
+                    type="monotone"
                     dataKey="visitCount"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={48}
+                    stroke="hsl(199 89% 48%)"
+                    strokeWidth={2}
+                    fill="url(#weeklyVisitGradient)"
+                    dot={false}
+                    activeDot={{ r: 5, fill: 'hsl(199 89% 48%)' }}
                     isAnimationActive={false}
                   />
-                </BarChart>
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">

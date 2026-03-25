@@ -27,20 +27,6 @@ interface InpatientWardChartProps {
   title?: string
 }
 
-// Custom legend rendered as ward-code = ward-name list
-function WardLegend({ data }: { data: IpdWardDistribution[] }) {
-  return (
-    <div className="flex flex-col gap-1 overflow-y-auto max-h-[220px] pl-2">
-      {data.map((ward) => (
-        <div key={ward.wardCode ?? ward.wardName} className="flex items-center gap-1.5 text-xs leading-tight">
-          <span className="shrink-0 inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-4))' }} />
-          <span className="font-semibold text-foreground shrink-0">{ward.wardCode ?? '-'}</span>
-          <span className="text-muted-foreground truncate">= {ward.wardName}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 export function InpatientWardChart({ data, isLoading, error, className, title = 'ผู้ป่วยในแยกตามตึก/วอร์ด' }: InpatientWardChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -95,7 +81,7 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
   }))
 
   return (
-    <Card ref={containerRef} className={cn(className)}>
+    <Card ref={containerRef} className={cn('flex flex-col', className)}>
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
         <div>
           <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด</CardTitle>
@@ -113,59 +99,63 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
         </div>
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
-      <CardContent>
-        <div className="flex gap-3">
-          {/* Chart area */}
-          <div className="flex-1 min-w-0">
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart
-                data={chartData}
-                margin={{ top: 5, right: 5, left: -30, bottom: 40 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
-                <XAxis
-                  type="category"
-                  dataKey="xLabel"
-                  tick={{ fontSize: 10 }}
-                  tickLine={false}
-                  axisLine={false}
-                  angle={-35}
-                  textAnchor="end"
-                  interval={0}
-                />
-                <YAxis
-                  type="number"
-                  tick={false}
-                  tickLine={false}
-                  axisLine={false}
-                  allowDecimals={false}
-                  width={0}
-                />
-                <Tooltip
-                  formatter={((value: unknown, _name: string, props: { payload?: IpdWardDistribution }) => [
-                    `${Number(value).toLocaleString()} คน`,
-                    props.payload?.wardName ?? 'ผู้ป่วยใน',
-                  ]) as never}
-                  contentStyle={{
+      <CardContent className="flex-1 pb-4">
+        <ResponsiveContainer width="100%" height="100%" minHeight={240}>
+          <BarChart
+            data={chartData}
+            margin={{ top: 5, right: 10, left: 10, bottom: 48 }}
+            barCategoryGap="20%"
+          >
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+            <XAxis
+              type="category"
+              dataKey="xLabel"
+              tick={{ fontSize: 10 }}
+              tickLine={false}
+              axisLine={false}
+              angle={-35}
+              textAnchor="end"
+              interval={0}
+              padding={{ left: 20, right: 20 }}
+              label={{ value: 'รหัสตึก', position: 'insideBottomRight', offset: 0, fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <YAxis
+              type="number"
+              tick={false}
+              tickLine={false}
+              axisLine={false}
+              allowDecimals={false}
+              width={0}
+            />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload || payload.length === 0) return null
+                const ward = payload[0].payload as IpdWardDistribution & { xLabel: string }
+                const count = Number(payload[0].value ?? 0)
+                return (
+                  <div style={{
                     borderRadius: '8px',
                     border: '1px solid hsl(var(--border))',
                     backgroundColor: 'hsl(var(--popover))',
-                    color: 'hsl(var(--popover-foreground))',
                     boxShadow: 'none',
-                  }}
-                  cursor={false}
-                />
-                <Bar dataKey="patientCount" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} maxBarSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Legend: code = name */}
-          <div className="w-36 shrink-0 flex flex-col justify-center">
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Legend</p>
-            <WardLegend data={data} />
-          </div>
-        </div>
+                    padding: '8px 12px',
+                    fontSize: '13.8px',
+                    lineHeight: '1.7',
+                  }}>
+                    <div style={{ fontWeight: 600, color: 'hsl(var(--popover-foreground))' }}>
+                      {ward.xLabel} : {ward.wardName}
+                    </div>
+                    <div style={{ color: 'hsl(var(--primary))', fontWeight: 500 }}>
+                      {count.toLocaleString()} คน
+                    </div>
+                  </div>
+                )
+              }}
+              cursor={false}
+            />
+            <Bar dataKey="patientCount" fill="hsl(199 89% 60% / 0.65)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+          </BarChart>
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   )

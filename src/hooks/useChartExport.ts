@@ -64,7 +64,7 @@ export function useChartExport(
         await document.fonts.ready
 
         // Shared html-to-image options
-        const baseOptions: htmlToImage.Options = {
+        const baseOptions: Parameters<typeof htmlToImage.toPng>[1] = {
           pixelRatio: 1.5,
           backgroundColor: '#ffffff',
           filter: exportFilter,

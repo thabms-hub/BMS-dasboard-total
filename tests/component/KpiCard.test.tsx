@@ -5,14 +5,6 @@ import { KpiCard } from '@/components/dashboard/KpiCard'
 
 describe('KpiCard', () => {
   it('MUST render title and formatted value when loaded', () => {
-    render(
-      <KpiCard
-        title="OPD Visits"
-        value={1234}
-        isLoading={false}
-        isError={false}
-      />
-    )
     const { getByText } = render(
       <KpiCard
         title="OPD Visits"

@@ -1,9 +1,10 @@
 // =============================================================================
 // Chart Export Hook - PNG, SVG, PDF, Excel support
+// Uses html-to-image (browser-native SVG renderer) for accurate CSS rendering
 // =============================================================================
 
 import { useState, useCallback } from 'react'
-import html2canvas from 'html2canvas'
+import * as htmlToImage from 'html-to-image'
 import { jsPDF } from 'jspdf'
 import * as XLSX from 'xlsx'
 
@@ -25,25 +26,6 @@ export interface UseChartExportReturn extends UseChartExportState {
   clearError: () => void
 }
 
-/**
- * Hook for exporting charts in multiple formats (PNG, SVG, PDF, Excel)
- *
- * @param options - Configuration with containerRef, data array, and optional title
- * @returns Object with export functions and state
- *
- * @example
- * ```ts
- * const containerRef = useRef<HTMLDivElement>(null)
- * const { exportChart, isExporting } = useChartExport({
- *   containerRef,
- *   data: chartData,
- *   title: 'My Chart'
- * })
- *
- * // Export as PNG
- * await exportChart('png')
- * ```
- */
 export function useChartExport(
   options: UseChartExportOptions,
 ): UseChartExportReturn {
@@ -51,13 +33,18 @@ export function useChartExport(
   const [isExporting, setIsExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
 
-  const clearError = useCallback(() => {
-    setExportError(null)
-  }, [])
+  const clearError = useCallback(() => setExportError(null), [])
 
-  const sanitizeFileName = (str: string): string => {
-    return str.replace(/[/\\?%*:|"<>]/g, '_').substring(0, 200)
-  }
+  const sanitizeFileName = (str: string): string =>
+    str.replace(/[/\\?%*:|"<>]/g, '_').substring(0, 200)
+
+  /** Skip elements marked to be excluded from export (e.g. the export button). */
+  const exportFilter = useCallback((node: Node): boolean => {
+    if (node instanceof HTMLElement) {
+      return node.dataset.html2canvasIgnore !== 'true'
+    }
+    return true
+  }, [])
 
   const exportChart = useCallback(
     async (format: ExportFormat) => {
@@ -72,17 +59,24 @@ export function useChartExport(
       try {
         const timestamp = new Date().toISOString().slice(0, 10)
         const fileName = `${sanitizeFileName(title)}_${timestamp}`
+        const el = containerRef.current
+
+        await document.fonts.ready
+
+        // Shared html-to-image options
+        const baseOptions: htmlToImage.Options = {
+          pixelRatio: 1.5,
+          backgroundColor: '#ffffff',
+          filter: exportFilter,
+          // Retry fetching resources to handle transient failures
+          fetchRequestInit: { cache: 'force-cache' },
+        }
 
         switch (format) {
           case 'png': {
-            // Export as PNG using html2canvas
-            const canvas = await html2canvas(containerRef.current, {
-              useCORS: true,
-              allowTaint: true,
-              backgroundColor: '#ffffff',
-            })
+            const dataUrl = await htmlToImage.toPng(el, baseOptions)
             const link = document.createElement('a')
-            link.href = canvas.toDataURL('image/png')
+            link.href = dataUrl
             link.download = `${fileName}.png`
             document.body.appendChild(link)
             link.click()
@@ -91,73 +85,48 @@ export function useChartExport(
           }
 
           case 'svg': {
-            // Export as SVG - extract SVG from recharts
-            const svg = containerRef.current.querySelector('svg')
-            if (!svg) {
-              throw new Error('No SVG found in chart container')
-            }
-
-            // Clone the SVG to avoid modifying the original
-            const clonedSvg = svg.cloneNode(true) as SVGSVGElement
-
-            // Set explicit dimensions if not present
-            if (!clonedSvg.hasAttribute('width')) {
-              clonedSvg.setAttribute('width', svg.clientWidth.toString())
-            }
-            if (!clonedSvg.hasAttribute('height')) {
-              clonedSvg.setAttribute('height', svg.clientHeight.toString())
-            }
-
-            const svgString = new XMLSerializer().serializeToString(clonedSvg)
-            const blob = new Blob([svgString], { type: 'image/svg+xml' })
+            const dataUrl = await htmlToImage.toSvg(el, {
+              ...baseOptions,
+              pixelRatio: 1,
+            })
             const link = document.createElement('a')
-            link.href = URL.createObjectURL(blob)
+            link.href = dataUrl
             link.download = `${fileName}.svg`
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
-            URL.revokeObjectURL(link.href)
             break
           }
 
           case 'pdf': {
-            // Export as PDF using html2canvas + jsPDF
-            const canvas = await html2canvas(containerRef.current, {
-              useCORS: true,
-              allowTaint: true,
-              backgroundColor: '#ffffff',
-            })
+            const dataUrl = await htmlToImage.toPng(el, baseOptions)
 
-            const imgData = canvas.toDataURL('image/png')
-            const imgWidth = 210 // A4 width in mm
-            const imgHeight = (canvas.height * imgWidth) / canvas.width
-            const pdf = new jsPDF({
-              orientation: imgHeight > imgWidth ? 'portrait' : 'landscape',
-              unit: 'mm',
-              format: 'a4',
-            })
+            const elW = el.offsetWidth
+            const elH = el.offsetHeight
+            const orientation = elH > elW ? 'portrait' : 'landscape'
 
+            const pdf = new jsPDF({ orientation, unit: 'mm', format: 'a4' })
             const pdfWidth = pdf.internal.pageSize.getWidth()
             const pdfHeight = pdf.internal.pageSize.getHeight()
+            const margin = 10
 
-            // Calculate dimensions to fit PDF
-            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
-            const finalWidth = imgWidth * ratio
-            const finalHeight = imgHeight * ratio
+            const availW = pdfWidth - margin * 2
+            const availH = pdfHeight - margin * 2
+            const ratio = Math.min(availW / elW, availH / elH)
+            const finalWidth = elW * ratio
+            const finalHeight = elH * ratio
             const x = (pdfWidth - finalWidth) / 2
             const y = (pdfHeight - finalHeight) / 2
 
-            pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight)
+            pdf.addImage(dataUrl, 'PNG', x, y, finalWidth, finalHeight)
             pdf.save(`${fileName}.pdf`)
             break
           }
 
           case 'excel': {
-            // Export data as Excel
             if (!data || data.length === 0) {
               throw new Error('No data to export')
             }
-
             const worksheet = XLSX.utils.json_to_sheet(data)
             const workbook = XLSX.utils.book_new()
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Data')
@@ -179,13 +148,8 @@ export function useChartExport(
         setIsExporting(false)
       }
     },
-    [containerRef, data, title],
+    [containerRef, data, title, exportFilter],
   )
 
-  return {
-    isExporting,
-    exportError,
-    exportChart,
-    clearError,
-  }
+  return { isExporting, exportError, exportChart, clearError }
 }

@@ -124,13 +124,12 @@ export function AgeGroupChart({
   })
 
   return (
-    <Card className={cn(className)}>
+    <Card ref={containerRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามกลุ่มอายุ</CardTitle>
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <div ref={containerRef}>
           <ResponsiveContainer width="100%" height={300}>
         <BarChart data={sortedData}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -152,7 +151,6 @@ export function AgeGroupChart({
           />
           </BarChart>
         </ResponsiveContainer>
-        </div>
       </CardContent>
     </Card>
   )

@@ -3,8 +3,8 @@
 // Professional showcase redesign with progress bars, rank badges, totals
 // =============================================================================
 
-import { useCallback, useMemo } from 'react'
-import { Building2 } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { Building2, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -19,8 +19,11 @@ import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import { getDepartmentWorkload } from '@/services/kpiService'
 
+const PAGE_SIZE = 10
+
 export function DepartmentTable() {
   const { connectionConfig, session } = useBmsSessionContext()
+  const [page, setPage] = useState(0)
 
   const queryFn = useCallback(
     () => getDepartmentWorkload(connectionConfig!, session!.databaseType),
@@ -53,6 +56,11 @@ export function DepartmentTable() {
         : 0,
     [departments],
   )
+
+  const totalPages = departments ? Math.ceil(departments.length / PAGE_SIZE) : 0
+  const pagedDepartments = departments
+    ? departments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+    : []
 
   // ---------------------------------------------------------------------------
   // Loading skeleton
@@ -131,6 +139,7 @@ export function DepartmentTable() {
   // Data table
   // ---------------------------------------------------------------------------
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow className="bg-muted/30">
@@ -146,7 +155,8 @@ export function DepartmentTable() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {departments.map((dept, index) => {
+        {pagedDepartments.map((dept, index) => {
+          const globalIndex = page * PAGE_SIZE + index
           const percentage =
             maxVisitCount > 0
               ? Math.round((dept.visitCount / maxVisitCount) * 100)
@@ -162,7 +172,7 @@ export function DepartmentTable() {
               {/* Rank badge */}
               <TableCell>
                 <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center">
-                  {index + 1}
+                  {globalIndex + 1}
                 </div>
               </TableCell>
 
@@ -197,5 +207,34 @@ export function DepartmentTable() {
         </TableRow>
       </TableBody>
     </Table>
+
+    {/* Pagination */}
+    {totalPages > 1 && (
+      <div className="flex items-center justify-between pt-3 text-sm text-muted-foreground">
+        <span>
+          หน้า {page + 1} / {totalPages}
+          <span className="ml-2 text-xs">
+            ({departments!.length.toLocaleString()} แผนก)
+          </span>
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPage((p) => p - 1)}
+            disabled={page === 0}
+            className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            disabled={page >= totalPages - 1}
+            className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

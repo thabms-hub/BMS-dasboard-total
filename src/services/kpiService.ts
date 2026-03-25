@@ -787,6 +787,7 @@ export async function getWeeklyMiniTrend(
     `SELECT ${queryBuilder.dateFormat(dbType, 'vstdate', '%Y-%m-%d')} as visit_date, COUNT(*) as visit_count ` +
     `FROM ovst ` +
     `WHERE vstdate >= ${queryBuilder.dateSubtract(dbType, 7)} ` +
+    `AND vstdate <= ${queryBuilder.currentDate(dbType)} ` +
     `GROUP BY ${queryBuilder.dateFormat(dbType, 'vstdate', '%Y-%m-%d')} ` +
     `ORDER BY visit_date`;
   const response = await executeSqlViaApi(sql, config);

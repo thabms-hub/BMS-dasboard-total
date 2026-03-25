@@ -81,13 +81,12 @@ export function DepartmentChart({
   const chartHeight = Math.max(300, data.length * 40)
 
   return (
-    <Card className={cn(className)}>
+    <Card ref={containerRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">รายละเอียดการเข้ารับบริการแยกตามแผนก</CardTitle>
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <div ref={containerRef}>
           <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart
             data={data}
@@ -134,7 +133,6 @@ export function DepartmentChart({
             />
           </BarChart>
         </ResponsiveContainer>
-        </div>
       </CardContent>
     </Card>
   )

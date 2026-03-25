@@ -90,7 +90,7 @@ export function HourlyChart({
     : 'Hourly Distribution'
 
   return (
-    <Card className={cn(className)}>
+    <Card ref={containerRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">
           {chartTitle}
@@ -98,7 +98,6 @@ export function HourlyChart({
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <div ref={containerRef}>
           <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -132,7 +131,6 @@ export function HourlyChart({
             />
           </BarChart>
         </ResponsiveContainer>
-        </div>
       </CardContent>
     </Card>
   )

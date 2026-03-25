@@ -112,13 +112,12 @@ export function PatientTypeChart({
   const dynamicHeight = Math.max(250, data.length * 35)
 
   return (
-    <Card className={cn(className)}>
+    <Card ref={containerRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามประเภทสิทธิ์</CardTitle>
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <div ref={containerRef}>
           <ResponsiveContainer width="100%" height={dynamicHeight}>
         <BarChart data={chartData} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -143,7 +142,6 @@ export function PatientTypeChart({
           />
           </BarChart>
         </ResponsiveContainer>
-        </div>
       </CardContent>
     </Card>
   )

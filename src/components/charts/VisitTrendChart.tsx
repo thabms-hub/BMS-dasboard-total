@@ -84,13 +84,12 @@ export function VisitTrendChart({
   // Chart
   // ---------------------------------------------------------------------------
   return (
-    <Card className={cn(className)}>
+    <Card ref={containerRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">แนวโน้มการเข้ารับบริการรายวัน</CardTitle>
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <div ref={containerRef}>
           <ResponsiveContainer width="100%" height={350}>
           <BarChart
             data={data}
@@ -134,7 +133,6 @@ export function VisitTrendChart({
             />
           </BarChart>
         </ResponsiveContainer>
-        </div>
       </CardContent>
     </Card>
   )

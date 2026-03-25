@@ -362,16 +362,16 @@ export default function Overview() {
       {/* 4. OPD Donut + Weekly Trend + Top Doctors  (3 / 6 / 3)             */}
       {/* ------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* OPD Department Donut (3/12) */}
+        {/* OPD Department Donut (4/12) */}
         <OpdDepartmentDonutChart
           data={opdDepartmentData ?? []}
           isLoading={isOpdDeptLoading}
           error={isOpdDeptError ? opdDeptError : null}
-          className="lg:col-span-3"
+          className="lg:col-span-4"
         />
 
-        {/* Weekly Visit Trend (6/12) */}
-        <Card className="lg:col-span-6">
+        {/* Weekly Visit Trend (5/12) */}
+        <Card className="lg:col-span-5">
           <CardHeader>
             <CardTitle className="text-lg">การเข้ารับบริการสัปดาห์นี้</CardTitle>
             <CardDescription>

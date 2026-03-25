@@ -152,13 +152,12 @@ export function GenderChart({ data, isLoading, className, title = 'สถิต�
   )
 
   return (
-    <Card className={cn(className)}>
+    <Card ref={containerRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">สถิติผู้ป่วยแยกตามเพศ</CardTitle>
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <div ref={containerRef}>
           <div className="flex flex-col items-center">
             <ResponsiveContainer width="100%" height={300}>
         <PieChart>
@@ -189,7 +188,6 @@ export function GenderChart({ data, isLoading, className, title = 'สถิต�
               </Badge>
             )}
           </div>
-        </div>
       </CardContent>
     </Card>
   )

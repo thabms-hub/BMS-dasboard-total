@@ -135,7 +135,7 @@ function DonutLegend({ slices }: LegendProps) {
             className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
             style={{ backgroundColor: CHART_COLORS[index] ?? '#94a3b8' }}
           />
-          <span className="flex-1 truncate text-muted-foreground">{slice.name}</span>
+          <span className="flex-1 text-muted-foreground" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'14ch'}}>{slice.name}</span>
           <span className="font-medium tabular-nums shrink-0">{slice.value.toLocaleString()}</span>
         </div>
       ))}
@@ -220,7 +220,7 @@ export function OpdDepartmentDonutChart({
   }
 
   return (
-    <Card className={cn(className)}>
+    <Card ref={containerRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
         <div>
           <CardTitle className="text-lg">
@@ -238,7 +238,6 @@ export function OpdDepartmentDonutChart({
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <div ref={containerRef}>
           <div className="flex items-center gap-4">
           {/* Donut chart */}
           <div className="shrink-0">
@@ -270,7 +269,6 @@ export function OpdDepartmentDonutChart({
             {/* Legend */}
             <DonutLegend slices={slices} />
           </div>
-        </div>
       </CardContent>
     </Card>
   )

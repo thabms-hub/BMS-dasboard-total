@@ -4,7 +4,9 @@
       "Bash(grep -l BarChart d:ThaclaudeBMSsessionIDbms-session-id-demo-dashboardsrccomponentscharts*.tsx)",
       "Bash(.specify/scripts/bash/create-new-feature.sh \"Feature: Export Dashboard, Charts, and Table Data:*)",
       "Bash(npm run:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(grep -n \"containerRef\\\\|ref={containerRef\" d:ThaclaudeBMSsessionIDbms-session-id-demo-dashboardsrccomponentscharts*.tsx)",
+      "Bash(node -e \"require\\(''''html-to-image''''\\)\")"
     ]
   }
 }

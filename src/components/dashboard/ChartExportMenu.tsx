@@ -81,7 +81,7 @@ export function ChartExportMenu({
   ]
 
   return (
-    <div ref={menuRef} className={cn('relative inline-block', className)}>
+    <div ref={menuRef} className={cn('relative inline-block', className)} data-html2canvas-ignore="true">
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isExporting}

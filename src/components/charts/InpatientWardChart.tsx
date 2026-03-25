@@ -90,7 +90,7 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
   const chartHeight = Math.max(300, data.length * 40)
 
   return (
-    <Card className={cn(className)}>
+    <Card ref={containerRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
         <div>
           <CardTitle className="text-sm font-medium">
@@ -111,7 +111,6 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
       <CardContent>
-        <div ref={containerRef}>
           <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart
             data={data}
@@ -154,7 +153,6 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
             <Bar dataKey="patientCount" fill="hsl(var(--chart-4))" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
-        </div>
       </CardContent>
     </Card>
   )

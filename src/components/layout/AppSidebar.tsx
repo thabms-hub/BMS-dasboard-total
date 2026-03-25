@@ -140,7 +140,7 @@ export function AppSidebar() {
     <>
       <aside
         className={cn(
-          'signature-gradient flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden',
+          'signature-gradient flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden h-full',
           collapsed ? 'w-14' : 'w-56',
         )}
       >

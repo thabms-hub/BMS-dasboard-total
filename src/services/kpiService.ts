@@ -9,6 +9,10 @@ import type {
   ConnectionConfig,
   DatabaseType,
   DepartmentWorkload,
+  DentistryCase,
+  DentistryInsuranceDistribution,
+  DentistryVisitTypeDistribution,
+  DentistrySummary,
   DoctorWorkload,
   ErVisitDetail,
   HourlyDistribution,
@@ -1086,4 +1090,163 @@ export async function getDiagnosisSummary(
     uniqueCodes: Number(row['unique_codes'] ?? 0),
   }));
   return rows[0] ?? { totalDiagnoses: 0, uniqueCodes: 0 };
+}
+
+// ---------------------------------------------------------------------------
+// Dentistry Department
+// ---------------------------------------------------------------------------
+
+/**
+ * Get all dentistry cases with treatment and doctor information.
+ * Filtered by date range (o.vstdate).
+ */
+export async function getDentistryCases(
+  config: ConnectionConfig,
+  startDate: string,
+  endDate: string,
+): Promise<DentistryCase[]> {
+  const sql =
+    `SELECT
+      d1.vn,
+      d1.an,
+      o.hn,
+      o.vstdate,
+      CONCAT(d2.name, ' ', d1.ttcode) AS tm_name,
+      d3.name AS doctor_name,
+      d4.name AS helper_name,
+      CONCAT(p.pname, p.fname, ' ', p.lname) AS ptname,
+      v.visit_type_name
+    FROM dtmain d1
+      LEFT OUTER JOIN ovst o ON o.vn = d1.vn
+      LEFT OUTER JOIN dttm d2 ON d2.code = d1.tmcode
+      LEFT OUTER JOIN visit_type v ON v.visit_type = o.visit_type
+      LEFT OUTER JOIN doctor d3 ON d3.code = d1.doctor
+      LEFT OUTER JOIN doctor d4 ON d4.code = d1.doctor_helper
+      LEFT OUTER JOIN patient p ON p.hn = o.hn
+    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'
+    ORDER BY d1.vstdate DESC, d1.vn DESC`;
+
+  const response = await executeSqlViaApi(sql, config);
+  return parseQueryResponse(response, (row) => ({
+    hn: String(row['hn'] ?? ''),
+    vn: String(row['vn'] ?? ''),
+    vstdate: String(row['vstdate'] ?? ''),
+    ttcode: String(row['ttcode'] ?? ''),
+    an: String(row['an'] ?? ''),
+    tmName: String(row['tm_name'] ?? ''),
+    doctorName: String(row['doctor_name'] ?? 'ไม่ระบุ'),
+    helperName: String(row['helper_name'] ?? ''),
+    patientName: String(row['ptname'] ?? ''),
+    visitTypeName: String(row['visit_type_name'] ?? ''),
+    pttype: String(row['pttype'] ?? 'ไม่ระบุ'),
+  }));
+}
+
+/**
+ * Get dentistry cases grouped by visit type for chart visualization.
+ * Filtered by date range (o.vstdate).
+ */
+export async function getDentistryByVisitType(
+  config: ConnectionConfig,
+  startDate: string,
+  endDate: string,
+): Promise<DentistryVisitTypeDistribution[]> {
+  const sql =
+    `SELECT
+      COALESCE(v.visit_type_name, 'ไม่ระบุ') AS visit_type_name,
+      COUNT(*) AS case_count
+    FROM dtmain d1
+      LEFT OUTER JOIN ovst o ON o.vn = d1.vn OR o.an = d1.vn
+      LEFT OUTER JOIN visit_type v ON v.visit_type = o.visit_type
+    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'
+    GROUP BY v.visit_type_name
+    ORDER BY case_count DESC`;
+
+  const response = await executeSqlViaApi(sql, config);
+  return parseQueryResponse(response, (row) => ({
+    visitTypeName: String(row['visit_type_name'] ?? 'ไม่ระบุ'),
+    caseCount: Number(row['case_count'] ?? 0),
+  }));
+}
+
+/**
+ * Get dentistry cases grouped by insurance type (pttype).
+ */
+export async function getDentistryByInsurance(
+  config: ConnectionConfig,
+  startDate: string,
+  endDate: string,
+): Promise<DentistryInsuranceDistribution[]> {
+  const sql =
+    `SELECT
+      COALESCE(gp.pttype_price_group_name, 'ไม่ระบุ') AS insurance_type,
+      COUNT(*) AS case_count
+    FROM dtmain d1
+      LEFT OUTER JOIN ovst o ON o.vn = d1.vn OR o.an = d1.vn
+      LEFT OUTER JOIN patient p ON p.hn = o.hn
+      LEFT OUTER JOIN pttype pt ON o.pttype = pt.pttype
+      LEFT OUTER JOIN pttype_price_group gp on gp.pttype_price_group_id = pt.pttype_price_group_id
+    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'
+    GROUP BY insurance_type
+    ORDER BY case_count DESC`;
+
+  const response = await executeSqlViaApi(sql, config);
+  return parseQueryResponse(response, (row) => ({
+    insuranceType: String(row['insurance_type'] ?? 'ไม่ระบุ'),
+    patientCount: Number(row['case_count'] ?? 0),
+  }));
+}
+
+/**
+ * Get dentistry summary metrics (visit count, IPD count) from SQL aggregation.
+ */
+async function getDentistrySummaryMetrics(
+  config: ConnectionConfig,
+  startDate: string,
+  endDate: string,
+): Promise<{ totalCases: number; totalVisits: number; totalIPDCases: number }> {
+  const sql =
+    `SELECT
+      COUNT(*) AS total_cases,
+      COUNT(DISTINCT CASE WHEN d1.an IS NULL OR d1.an = '' THEN d1.vn END) AS total_visits,
+      COUNT(CASE WHEN d1.an IS NOT NULL AND d1.an != '' THEN 1 END) AS total_ipd_cases
+    FROM dtmain d1
+      LEFT OUTER JOIN ovst o ON o.vn = d1.vn
+    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'`;
+
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => ({
+    totalCases: Number(row['total_cases'] ?? 0),
+    totalVisits: Number(row['total_visits'] ?? 0),
+    totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
+  }));
+
+  return rows.length > 0
+    ? rows[0]
+    : { totalCases: 0, totalVisits: 0, totalIPDCases: 0 };
+}
+
+/**
+ * Get dentistry department summary for a date range.
+ */
+export async function getDentistrySummary(
+  config: ConnectionConfig,
+  startDate: string,
+  endDate: string,
+): Promise<DentistrySummary> {
+  const [cases, visitTypeDistribution, insuranceDistribution, metrics] = await Promise.all([
+    getDentistryCases(config, startDate, endDate),
+    getDentistryByVisitType(config, startDate, endDate),
+    getDentistryByInsurance(config, startDate, endDate),
+    getDentistrySummaryMetrics(config, startDate, endDate),
+  ]);
+
+  return {
+    totalCases: metrics.totalCases,
+    totalVisits: metrics.totalVisits,
+    totalIPDCases: metrics.totalIPDCases,
+    casesByVisitType: visitTypeDistribution,
+    casesByInsurance: insuranceDistribution,
+    cases,
+  };
 }

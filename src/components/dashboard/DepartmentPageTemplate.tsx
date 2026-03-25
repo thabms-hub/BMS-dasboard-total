@@ -3,12 +3,13 @@
 // =============================================================================
 
 import type { LucideIcon } from 'lucide-react'
+import type { ComponentType } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface DepartmentPageTemplateProps {
   title: string
   subtitle?: string
-  icon: LucideIcon
+  icon: LucideIcon | ComponentType<{ className?: string }>
   children?: React.ReactNode
 }
 

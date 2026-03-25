@@ -135,7 +135,7 @@ function DonutLegend({ slices }: LegendProps) {
             className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
             style={{ backgroundColor: CHART_COLORS[index] ?? '#94a3b8' }}
           />
-          <span className="flex-1 text-muted-foreground" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'14ch'}}>{slice.name}</span>
+          <span className="flex-1 truncate text-muted-foreground min-w-0">{slice.name}</span>
           <span className="font-medium tabular-nums shrink-0">{slice.value.toLocaleString()}</span>
         </div>
       ))}
@@ -239,9 +239,9 @@ export function OpdDepartmentDonutChart({
       </CardHeader>
       <CardContent>
           <div className="flex items-center gap-4">
-          {/* Donut chart */}
-          <div className="shrink-0">
-            <ResponsiveContainer width={160} height={160}>
+          {/* Donut chart — 60% */}
+          <div className="basis-3/5 min-w-0 overflow-hidden">
+            <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
                   data={slices}
@@ -249,8 +249,8 @@ export function OpdDepartmentDonutChart({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius={45}
-                  outerRadius={75}
+                  innerRadius={50}
+                  outerRadius={80}
                   paddingAngle={2}
                   strokeWidth={0}
                 >
@@ -266,8 +266,10 @@ export function OpdDepartmentDonutChart({
             </ResponsiveContainer>
           </div>
 
-            {/* Legend */}
-            <DonutLegend slices={slices} />
+            {/* Legend — 40% */}
+            <div className="basis-2/5 min-w-0">
+              <DonutLegend slices={slices} />
+            </div>
           </div>
       </CardContent>
     </Card>

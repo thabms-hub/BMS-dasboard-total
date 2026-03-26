@@ -10,6 +10,7 @@ import type {
   DatabaseType,
   DepartmentWorkload,
   DentistryCase,
+  DentistryDoctorPerformance,
   DentistryInsuranceDistribution,
   DentistryVisitTypeDistribution,
   DentistrySummary,
@@ -1163,7 +1164,7 @@ export async function getDentistryCases(
       LEFT OUTER JOIN doctor d4 ON d4.code = d1.doctor_helper
       LEFT OUTER JOIN patient p ON p.hn = o.hn
     WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'
-    ORDER BY d1.vstdate DESC, d1.vn DESC`;
+    ORDER BY d1.vstdate, d1.vn `;
 
   const response = await executeSqlViaApi(sql, config);
   return parseQueryResponse(response, (row) => ({
@@ -1193,7 +1194,7 @@ export async function getDentistryByVisitType(
   const sql =
     `SELECT
       COALESCE(v.visit_type_name, 'ไม่ระบุ') AS visit_type_name,
-      COUNT(*) AS case_count
+      COUNT(distinct d1.vn) AS case_count
     FROM dtmain d1
       LEFT OUTER JOIN ovst o ON o.vn = d1.vn OR o.an = d1.vn
       LEFT OUTER JOIN visit_type v ON v.visit_type = o.visit_type
@@ -1219,7 +1220,7 @@ export async function getDentistryByInsurance(
   const sql =
     `SELECT
       COALESCE(gp.pttype_price_group_name, 'ไม่ระบุ') AS insurance_type,
-      COUNT(*) AS case_count
+      COUNT(distinct d1.vn) AS case_count
     FROM dtmain d1
       LEFT OUTER JOIN ovst o ON o.vn = d1.vn OR o.an = d1.vn
       LEFT OUTER JOIN patient p ON p.hn = o.hn
@@ -1233,6 +1234,64 @@ export async function getDentistryByInsurance(
   return parseQueryResponse(response, (row) => ({
     insuranceType: String(row['insurance_type'] ?? 'ไม่ระบุ'),
     patientCount: Number(row['case_count'] ?? 0),
+  }));
+}
+
+/**
+ * Get dentistry performance summary grouped by doctor.
+ */
+export async function getDoctorPerformance(
+  config: ConnectionConfig,
+  startDate: string,
+  endDate: string,
+): Promise<DentistryDoctorPerformance[]> {
+  const sql =
+    `SELECT 
+      doctor.name AS doctor_name, 
+      COUNT(DISTINCT dtmain.vn) AS c_vn, 
+      COUNT(*) AS c_dtmain, 
+      SUM(COALESCE(opitemrece.sum_price, 0)) AS sum_price 
+    FROM dtmain  
+    LEFT JOIN opitemrece ON opitemrece.hos_guid = dtmain.opi_guid
+    LEFT JOIN doctor ON doctor.code = dtmain.doctor 
+    WHERE doctor.name NOT LIKE '%BMS%' 
+      AND dtmain.vstdate BETWEEN '${startDate}' AND '${endDate}'
+    GROUP BY doctor_name 
+    ORDER BY doctor_name`;
+
+  const response = await executeSqlViaApi(sql, config);
+  return parseQueryResponse(response, (row) => ({
+    doctorName: String(row['doctor_name'] ?? 'ไม่ระบุ'),
+    c_vn: Number(row['c_vn'] ?? 0),
+    c_dtmain: Number(row['c_dtmain'] ?? 0),
+    sum_price: Number(row['sum_price'] ?? 0),
+  }));
+}
+
+/**
+ * Get dentistry service records by care type.
+ * Uses DATE(entry_datetime) to filter by date portion only,
+ * because the inputs are date strings (start/end date) without time.
+ */
+export async function getDentService(
+  config: ConnectionConfig,
+  startDate: string,
+  endDate: string,
+): Promise<DentistryServiceTypeCount[]> {
+  const sql =
+    `SELECT
+      dt.dental_care_type_name,
+      COUNT(*) AS total_count
+    FROM dental_care dc
+    LEFT JOIN dental_care_type dt ON dt.dental_care_type_id = dc.dental_care_type_id
+    WHERE DATE(dc.entry_datetime) BETWEEN '${startDate}' AND '${endDate}'
+    GROUP BY dt.dental_care_type_name
+    ORDER BY total_count DESC`;
+
+  const response = await executeSqlViaApi(sql, config);
+  return parseQueryResponse(response, (row) => ({
+    dentalCareTypeName: String(row['dental_care_type_name'] ?? 'ไม่ระบุ'),
+    totalCount: Number(row['total_count'] ?? 0),
   }));
 }
 
@@ -1273,11 +1332,12 @@ export async function getDentistrySummary(
   startDate: string,
   endDate: string,
 ): Promise<DentistrySummary> {
-  const [cases, visitTypeDistribution, insuranceDistribution, metrics] = await Promise.all([
+  const [cases, visitTypeDistribution, insuranceDistribution, metrics, doctorPerformance] = await Promise.all([
     getDentistryCases(config, startDate, endDate),
     getDentistryByVisitType(config, startDate, endDate),
     getDentistryByInsurance(config, startDate, endDate),
     getDentistrySummaryMetrics(config, startDate, endDate),
+    getDoctorPerformance(config, startDate, endDate),
   ]);
 
   return {
@@ -1287,5 +1347,6 @@ export async function getDentistrySummary(
     casesByVisitType: visitTypeDistribution,
     casesByInsurance: insuranceDistribution,
     cases,
+    doctorPerformance,
   };
 }

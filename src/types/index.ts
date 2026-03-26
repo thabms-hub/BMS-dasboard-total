@@ -263,7 +263,19 @@ export interface DentistryInsuranceDistribution {
   patientCount: number
 }
 
+export interface DentistryServiceTypeCount {
+  dentalCareTypeName: string
+  totalCount: number
+}
+
 /** Dentistry department summary */
+export interface DentistryDoctorPerformance {
+  doctorName: string
+  c_vn: number
+  c_dtmain: number
+  sum_price: number
+}
+
 export interface DentistrySummary {
   totalCases: number
   totalVisits: number
@@ -271,4 +283,5 @@ export interface DentistrySummary {
   casesByVisitType: DentistryVisitTypeDistribution[]
   casesByInsurance: DentistryInsuranceDistribution[]
   cases: DentistryCase[]
+  doctorPerformance: DentistryDoctorPerformance[]
 }

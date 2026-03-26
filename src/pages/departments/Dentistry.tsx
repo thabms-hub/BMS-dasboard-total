@@ -9,7 +9,9 @@ import { ChevronLeft, ChevronRight, RefreshCw, CalendarDays, Clock } from 'lucid
 import {
   ResponsiveContainer,
   BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -38,10 +40,10 @@ import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
 import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
-import { getDentistrySummary } from '@/services/kpiService'
+import { getDentistrySummary, getDoctorPerformance, getDentService } from '@/services/kpiService'
 import { getDateRange, formatDate, formatDateTime } from '@/utils/dateUtils'
 import { cn } from '@/lib/utils'
-import type { DentistrySummary } from '@/types'
+import type { DentistrySummary, DentistryDoctorPerformance, DentistryServiceTypeCount } from '@/types'
 
 export default function Dentistry() {
   const { connectionConfig, session } = useBmsSessionContext()
@@ -52,6 +54,7 @@ export default function Dentistry() {
   // Chart container refs for export
   const barChartContainerRef = useRef<HTMLDivElement>(null)
   const donutChartContainerRef = useRef<HTMLDivElement>(null)
+  const dentalServiceContainerRef = useRef<HTMLDivElement>(null)
 
   // Date range state - default to today
   const defaultRange = useMemo(() => getDateRange(0), [])
@@ -71,6 +74,38 @@ export default function Dentistry() {
     enabled: isConnected,
   })
 
+  const doctorPerformanceFn = useCallback(
+    () => getDoctorPerformance(connectionConfig!, startDate, endDate),
+    [connectionConfig, startDate, endDate],
+  )
+
+  const {
+    data: doctorPerformance,
+    isLoading: isDoctorPerfLoading,
+    isError: isDoctorPerfError,
+    error: doctorPerfError,
+    execute: executeDoctorPerf,
+  } = useQuery<DentistryDoctorPerformance[]>({
+    queryFn: doctorPerformanceFn,
+    enabled: isConnected,
+  })
+
+  const dentServiceFn = useCallback(
+    () => getDentService(connectionConfig!, startDate, endDate),
+    [connectionConfig, startDate, endDate],
+  )
+
+  const {
+    data: dentService,
+    isLoading: isDentServiceLoading,
+    isError: isDentServiceError,
+    error: dentServiceError,
+    execute: executeDentService,
+  } = useQuery<DentistryServiceTypeCount[]>({
+    queryFn: dentServiceFn,
+    enabled: isConnected,
+  })
+
   const handleRangeChange = useCallback((newStart: string, newEnd: string) => {
     setStartDate(newStart)
     setEndDate(newEnd)
@@ -80,13 +115,13 @@ export default function Dentistry() {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     try {
-      await execute()
+      await Promise.all([execute(), executeDoctorPerf(), executeDentService()])
       setLastUpdated(new Date())
     } finally {
       // Small delay so the user sees the spinner
       setTimeout(() => setIsRefreshing(false), 600)
     }
-  }, [execute])
+  }, [execute, executeDoctorPerf, executeDentService])
 
   // ---------------------------------------------------------------------------
   // Pagination logic
@@ -124,34 +159,42 @@ export default function Dentistry() {
     }),
   )
 
-  // Color palette for insurance types
+  // Color palette for insurance types (theme-based)
   const insuranceColors = [
-    '#3b82f6', // Blue
-    '#ef4444', // Red
-    '#10b981', // Green
-    '#f59e0b', // Amber
-    '#8b5cf6', // Purple
-    '#ec4899', // Pink
-    '#06b6d4', // Cyan
-    '#14b8a6', // Teal
+    'hsl(var(--chart-1))',
+    'hsl(var(--chart-2))',
+    'hsl(var(--chart-3))',
+    'hsl(var(--chart-4))',
+    'hsl(var(--chart-5))',
+    'hsl(var(--chart-1) / 0.9)',
+    'hsl(var(--chart-2) / 0.9)',
+    'hsl(var(--chart-3) / 0.9)',
   ]
+
+  const dentalServiceChartData = (dentService ?? []).map((item) => ({
+    name: item.dentalCareTypeName,
+    value: item.totalCount,
+  }))
 
   // Mini stat cards definition
   const miniStats = useMemo(
     () => [
       {
-        label: 'จำนวนหัตถการ',
+        label: 'จำนวนหัตถการทั้งหมด',
         value: dentistry?.totalCases,
+        unit: 'รายการ',
         icon: <ToothIcon className="h-4 w-4" />,
       },
       {
-        label: 'จำนวน Visit',
+        label: 'ผู้ป่วยนอก',
         value: dentistry?.totalVisits,
+        unit: 'ราย',
         icon: <Clock className="h-4 w-4" />,
       },
       {
-        label: 'เคส IPD',
+        label: 'ผู้ป่วยใน',
         value: dentistry?.totalIPDCases,
+        unit: 'ราย',
         icon: <Clock className="h-4 w-4" />,
       },
     ],
@@ -279,21 +322,113 @@ export default function Dentistry() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {miniStats.map((stat) => (
             <Card key={stat.label} className="p-3">
-              <CardContent className="flex flex-col items-start gap-1.5 p-0">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  {stat.icon}
+              <CardContent className="flex flex-col gap-2 p-0">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    {stat.icon}
+                  </div>
+                  <p className="text-sm text-black/90 font-semibold">{stat.label}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-                <p className="text-lg font-bold">
-                  {stat.value?.toLocaleString() ?? '0'}
+                <p className="text-xl font-bold text-black">
+                  {stat.value?.toLocaleString() ?? '0'} {stat.unit}
                 </p>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Charts Row — Bar Chart and Doughnut Chart Side by Side */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Charts row: Dental service, Visit type, and Insurance in one row */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {/* Dental care service summary */}
+          <Card ref={dentalServiceContainerRef}>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle className="text-lg">ตรวจสุขภาพฟันแยกตามกลุ่มอายุ</CardTitle>
+                <CardDescription>
+                  {dentalServiceChartData.length > 0
+                    ? `รวม ${dentalServiceChartData.reduce((sum, d) => sum + d.value, 0).toLocaleString()} ราย`
+                    : 'ไม่มีข้อมูล'}
+                </CardDescription>
+              </div>
+              {dentalServiceChartData.length > 0 && (
+                <ChartExportMenu
+                  containerRef={dentalServiceContainerRef}
+                  data={dentalServiceChartData}
+                  title="ตรวจสุขภาพฟันแยกตามกลุ่มอายุ"
+                />
+              )}
+            </CardHeader>
+            <CardContent>
+              {isDentServiceLoading ? (
+                <div className="flex h-[280px] items-center justify-center">
+                  <Skeleton className="h-[240px] w-full" />
+                </div>
+              ) : isDentServiceError ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">{dentServiceError?.message || 'ไม่สามารถโหลดข้อมูลได้'}</p>
+                </div>
+              ) : dentalServiceChartData.length > 0 ? (
+                <div className="flex items-center gap-4">
+                  <div className="basis-3/5 min-w-0 overflow-hidden">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <PieChart>
+                        <Pie
+                          data={dentalServiceChartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="value"
+                          nameKey="name"
+                          strokeWidth={0}
+                        >
+                          {dentalServiceChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={insuranceColors[index % insuranceColors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload || payload.length === 0) return null
+                            const item = payload[0]
+                            const groupLabel = label || item?.name || item?.payload?.name || 'ไม่ระบุ'
+                            const value = item?.value ?? 0
+                            return (
+                              <div className="bg-white dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-700 p-2 text-xs shadow-md">
+                                <div className="text-slate-500 dark:text-slate-300">กลุ่ม: {groupLabel}</div>
+                                <div className="text-slate-900 dark:text-slate-100 font-medium">จำนวน: {Number(value).toLocaleString()} ราย</div>
+                              </div>
+                            )
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="basis-2/5 min-w-0">
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
+                      {dentalServiceChartData.map((item, index) => (
+                        <div key={item.name} className="flex items-center gap-2 text-xs min-w-0">
+                          <span
+                            className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+                            style={{ backgroundColor: insuranceColors[index % insuranceColors.length] }}
+                          />
+                          <span className="flex-1 truncate text-muted-foreground min-w-0">{item.name}</span>
+                          <span className="font-medium tabular-nums shrink-0">{item.value.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">ไม่มีข้อมูลในช่วงเวลาที่เลือก</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Visit Type Distribution Chart */}
           <Card ref={barChartContainerRef}>
             <CardHeader className="flex flex-row items-start justify-between space-y-0">
@@ -301,7 +436,7 @@ export default function Dentistry() {
                 <CardTitle className="text-lg">จำนวนหัตถการแยกตามประเภทการรับบริการ</CardTitle>
                 <CardDescription>
                   {chartData.length > 0
-                    ? `รวม ${chartData.reduce((sum, d) => sum + d.cases, 0).toLocaleString()} เคส`
+                    ? `รวม ${chartData.reduce((sum, d) => sum + d.cases, 0).toLocaleString()} ราย`
                     : 'ไม่มีข้อมูล'}
                 </CardDescription>
               </div>
@@ -312,23 +447,49 @@ export default function Dentistry() {
             <CardContent>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 5, right: 10, left: 10, bottom: 48 }}
+                    barCategoryGap="20%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
                     <XAxis
                       dataKey="visitType"
-                      angle={-45}
+                      type="category"
+                      angle={-35}
                       textAnchor="end"
+                      interval={0}
+                      tick={{ fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      padding={{ left: 20, right: 20 }}
                       height={80}
-                      tick={{ fontSize: 12 }}
                     />
-                    <YAxis />
+                    <YAxis
+                      type="number"
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      width={0}
+                    />
                     <Tooltip
                       labelFormatter={(label) => `ประเภท: ${label}`}
                       formatter={(value) => [`${value} เคส`, 'จำนวน']}
+                      contentStyle={{
+                        borderRadius: '8px',
+                        border: '1px solid hsl(var(--border))',
+                        background: 'hsl(var(--card))',
+                        fontSize: '12px',
+                      }}
                       cursor={false}
                     />
-                    <Legend />
-                    <Bar dataKey="cases" fill="hsl(var(--primary))" name="จำนวนหัตถการ" isAnimationActive={false} />
+                    <Bar
+                      dataKey="cases"
+                      fill="hsl(var(--chart-1) / 0.75)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
+                      isAnimationActive={false}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -347,7 +508,7 @@ export default function Dentistry() {
                 <CardTitle className="text-lg">ผู้ป่วยแยกตามสิทธิการรักษา</CardTitle>
                 <CardDescription>
                   {insuranceChartData.length > 0
-                    ? `รวม ${insuranceChartData.reduce((sum, d) => sum + d.value, 0).toLocaleString()} ผู้ป่วย`
+                    ? `รวม ${insuranceChartData.reduce((sum, d) => sum + d.value, 0).toLocaleString()} ราย`
                     : 'ไม่มีข้อมูล'}
                 </CardDescription>
               </div>
@@ -358,7 +519,6 @@ export default function Dentistry() {
             <CardContent>
               {insuranceChartData.length > 0 ? (
                 <div className="flex items-center gap-4">
-                  {/* Donut chart — 60% */}
                   <div className="basis-3/5 min-w-0 overflow-hidden">
                     <ResponsiveContainer width="100%" height={220}>
                       <PieChart>
@@ -390,7 +550,6 @@ export default function Dentistry() {
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Legend — 40% */}
                   <div className="basis-2/5 min-w-0">
                     <div className="flex flex-col gap-1 flex-1 min-w-0">
                       {insuranceChartData.map((item, index) => (
@@ -415,6 +574,94 @@ export default function Dentistry() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Doctor performance summary */}
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle className="text-lg">สรุปยอดผู้ป่วยตามแพทย์</CardTitle>
+              <CardDescription>
+                แสดงจำนวนผู้ป่วย หัตถการ และยอดค่ารักษาตามแพทย์
+              </CardDescription>
+            </div>
+            <ChartExportMenu
+              containerRef={barChartContainerRef}
+              data={doctorPerformance ?? []}
+              title="สรุปยอดผู้ป่วยตามแพทย์"
+            />
+          </CardHeader>
+          <CardContent>
+            {isDoctorPerfLoading ? (
+              <div className="flex h-[280px] items-center justify-center">
+                <Skeleton className="h-[240px] w-full" />
+              </div>
+            ) : isDoctorPerfError ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">{doctorPerfError?.message || 'ไม่สามารถโหลดข้อมูลได้'}</p>
+              </div>
+            ) : doctorPerformance && doctorPerformance.length > 0 ? (
+              <ResponsiveContainer width="100%" height={440}>
+                <ComposedChart
+                  data={doctorPerformance}
+                  margin={{ top: 20, right: 30, left: 10, bottom: 120 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    dataKey="doctorName"
+                    angle={-45}
+                    textAnchor="end"
+                    interval={0}
+                    height={100}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12 }}
+                    width={50}
+                  />
+                  <Tooltip cursor={false} />
+                  <Legend verticalAlign="top" />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="c_vn"
+                    name="จำนวนผู้ป่วย"
+                    fill="hsl(var(--chart-1) / 0.75)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={40}
+                    isAnimationActive={false}
+                  />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="c_dtmain"
+                    name="จำนวนหัตถการ"
+                    fill="hsl(var(--chart-2) / 0.75)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={40}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="sum_price"
+                    name="ยอดค่ารักษา"
+                    stroke="hsl(var(--chart-3))"
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8">
+                <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">ไม่มีข้อมูลในช่วงเวลาที่เลือก</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Patient Details Table */}
         <Card>
@@ -535,20 +782,16 @@ export default function Dentistry() {
   }
 
   return (
-    <DepartmentPageTemplate
-      title="ทันตกรรม"
-      subtitle="Dentistry"
-      icon={ToothIcon as any}
-    >
-      <div className="flex flex-col gap-6">
-        {/* ------------------------------------------------------------------- */}
-        {/* 1. Welcome Banner                                                    */}
-        {/* ------------------------------------------------------------------- */}
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      {/* Page header */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <ToothIcon className="h-5 w-5 text-primary" />
+          </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight">
-              ข้อมูลทันตกรรม
-            </h2>
+            <h2 className="text-2xl font-bold tracking-tight">ระบบงานทันตกรรม</h2>
+            <p className="text-sm text-muted-foreground">Dentistry</p>
             <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="h-3.5 w-3.5" />
@@ -561,35 +804,35 @@ export default function Dentistry() {
               </span>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2 gap-1.5 sm:mt-0 text-blue dark:text-white dark:bg-orange-500/5 dark:border-orange-400/60 dark:hover:bg-orange-500/15 dark:hover:border-orange-300"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw
-              className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')}
-            />
-            รีเฟรช
-          </Button>
         </div>
-
-        {/* ------------------------------------------------------------------- */}
-        {/* 2. Date Range Picker                                                 */}
-        {/* ------------------------------------------------------------------- */}
-        <DateRangePicker 
-          startDate={startDate} 
-          endDate={endDate} 
-          onRangeChange={handleRangeChange}
-          isLoading={isLoading}
-        />
-
-        {/* ------------------------------------------------------------------- */}
-        {/* 3. Content — Changes based on state                                  */}
-        {/* ------------------------------------------------------------------- */}
-        {renderContent()}
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-2 gap-1.5 sm:mt-0 text-blue dark:text-white dark:bg-orange-500/5 dark:border-orange-400/60 dark:hover:bg-orange-500/15 dark:hover:border-orange-300"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshCw
+            className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')}
+          />
+          รีเฟรช
+        </Button>
       </div>
-    </DepartmentPageTemplate>
+
+      {/* ------------------------------------------------------------------- */}
+      {/* 2. Date Range Picker                                                 */}
+      {/* ------------------------------------------------------------------- */}
+      <DateRangePicker 
+        startDate={startDate} 
+        endDate={endDate} 
+        onRangeChange={handleRangeChange}
+        isLoading={isLoading}
+      />
+
+      {/* ------------------------------------------------------------------- */}
+      {/* 3. Content — Changes based on state                                  */}
+      {/* ------------------------------------------------------------------- */}
+      {renderContent()}
+    </div>
   )
 }

@@ -24,27 +24,31 @@ function toDate(date: Date | string): Date {
 // ---------------------------------------------------------------------------
 
 /**
- * Formats a date as a human-readable string.
+ * Formats a date as a human-readable string with Buddhist Era year (พ.ศ.).
  *
- * @example formatDate(new Date(2026, 2, 17)) // "Mar 17, 2026"
+ * @example formatDate(new Date(2026, 2, 17)) // "17 มี.ค. 2569"
  *
  * @param date - A `Date` object or ISO-8601 string.
- * @returns The formatted date string in `'MMM dd, yyyy'` format.
+ * @returns The formatted date string with Buddhist Era year.
  */
 export function formatDate(date: Date | string): string {
-  return format(toDate(date), 'd MMM yyyy', { locale: th });
+  const d = toDate(date);
+  const beYear = d.getFullYear() + 543;
+  return format(d, 'd MMM', { locale: th }) + ' ' + beYear;
 }
 
 /**
- * Formats a date with time as a human-readable string.
+ * Formats a date with time as a human-readable string with Buddhist Era year (พ.ศ.).
  *
- * @example formatDateTime(new Date(2026, 2, 17, 14, 30)) // "Mar 17, 2026 14:30"
+ * @example formatDateTime(new Date(2026, 2, 17, 14, 30)) // "17 มี.ค. 2569 14:30"
  *
  * @param date - A `Date` object or ISO-8601 string.
- * @returns The formatted date-time string in `'MMM dd, yyyy HH:mm'` format.
+ * @returns The formatted date-time string with Buddhist Era year.
  */
 export function formatDateTime(date: Date | string): string {
-  return format(toDate(date), 'd MMM yyyy HH:mm', { locale: th });
+  const d = toDate(date);
+  const beYear = d.getFullYear() + 543;
+  return format(d, 'd MMM', { locale: th }) + ' ' + beYear + format(d, ' HH:mm');
 }
 
 /**

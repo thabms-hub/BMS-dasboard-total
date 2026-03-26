@@ -1267,7 +1267,7 @@ export async function getDoctorPerformance(
     FROM dtmain  
     LEFT JOIN opitemrece ON opitemrece.hos_guid = dtmain.opi_guid
     LEFT JOIN doctor ON doctor.code = dtmain.doctor 
-    WHERE doctor.name NOT LIKE '%BMS%' 
+    WHERE upper(doctor.name NOT LIKE '%BMS%' 
       AND dtmain.vstdate BETWEEN '${startDate}' AND '${endDate}'
     GROUP BY doctor_name 
     ORDER BY doctor_name`;
@@ -1389,6 +1389,137 @@ export async function getReferStats(
   const referIn = parseQueryResponse(inResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
   const referOut = parseQueryResponse(outResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
   return { referIn, referOut };
+}
+
+// ---------------------------------------------------------------------------
+// Revenue stats for today (total, self-pay, receivable)
+// ---------------------------------------------------------------------------
+
+export interface RevenueStats {
+  totalAmount: number;
+  selfPayAmount: number;
+  receivableAmount: number;
+}
+
+export async function getRevenueStats(
+  config: ConnectionConfig,
+): Promise<RevenueStats> {
+  const [totalResp, selfPayResp, receivableResp] = await Promise.all([
+    executeSqlViaApi(
+      `SELECT sum(coalesce(sum_price,0)) as total FROM opitemrece WHERE vstdate = current_date AND vn <> ''`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT sum(coalesce(sum_price,0)) as total FROM opitemrece WHERE vstdate = current_date AND vn <> '' AND paidst IN('01','03')`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT sum(coalesce(sum_price,0)) as total FROM opitemrece WHERE vstdate = current_date AND vn <> '' AND paidst NOT IN('01','03')`,
+      config,
+    ),
+  ]);
+  const totalAmount = parseQueryResponse(totalResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const selfPayAmount = parseQueryResponse(selfPayResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const receivableAmount = parseQueryResponse(receivableResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  return { totalAmount, selfPayAmount, receivableAmount };
+}
+
+// ---------------------------------------------------------------------------
+// Bed availability stats (today)
+// ---------------------------------------------------------------------------
+
+export interface BedStats {
+  totalBeds: number;
+  occupiedBeds: number;
+  availableBeds: number;
+}
+
+export async function getBedStats(config: ConnectionConfig): Promise<BedStats> {
+  const [totalResp, occupiedResp] = await Promise.all([
+    executeSqlViaApi(
+      `SELECT sum(coalesce(bedcount,0)) as total FROM ward WHERE ward_active='Y'`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT count(distinct i2.an) as total FROM roomno r,bedno b, bed_status_type bt,ipt i1,iptadm i2, ward w ` +
+      `WHERE r.roomno = b.roomno AND b.bedno = i2.bedno AND i2.an = i1.an AND i1.ward = w.ward ` +
+      `AND i1.confirm_discharge='N' AND b.bed_status_type_id = bt.bed_status_type_id ` +
+      `AND bt.is_available = 'Y' AND w.ward_active = 'Y' ` +
+      `AND r.name NOT LIKE '%เสริม%' AND r.name NOT LIKE '%แทรก%' AND r.name NOT LIKE '%ยกเลิก%' ` +
+      `AND r.room_status_type_id = 1`,
+      config,
+    ),
+  ]);
+  const totalBeds = parseQueryResponse(totalResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const occupiedBeds = parseQueryResponse(occupiedResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  return { totalBeds, occupiedBeds, availableBeds: Math.max(0, totalBeds - occupiedBeds) };
+}
+
+// ---------------------------------------------------------------------------
+// Bed occupancy rate for current month
+// ---------------------------------------------------------------------------
+
+export interface BedOccupancyStats {
+  occupancyRate: number;
+  admitDays: number;
+  totalBeds: number;
+  daysInPeriod: number;
+}
+
+export async function getBedOccupancyStats(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<BedOccupancyStats> {
+  const firstDay = queryBuilder.firstDayOfMonth(dbType);
+  const today = queryBuilder.currentDate(dbType);
+
+  const [admitDaysResp, totalBedsResp] = await Promise.all([
+    executeSqlViaApi(
+      `SELECT count(*) as total FROM ward_admit_snapshot WHERE snap_date >= ${firstDay} AND snap_date <= ${today}`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT sum(coalesce(bedcount,0)) as total FROM ward WHERE ward_active='Y'`,
+      config,
+    ),
+  ]);
+
+  const admitDays = parseQueryResponse(admitDaysResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const totalBeds = parseQueryResponse(totalBedsResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const daysInPeriod = Math.floor((now.getTime() - firstOfMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  const denominator = daysInPeriod * totalBeds;
+  const occupancyRate = denominator > 0
+    ? Math.round((admitDays * 1000) / denominator) / 10
+    : 0;
+
+  return { occupancyRate, admitDays, totalBeds, daysInPeriod };
+}
+
+// ---------------------------------------------------------------------------
+// AdjRW sum for current month
+// ---------------------------------------------------------------------------
+
+export interface AdjRwStats {
+  adjRwTotal: number;
+}
+
+export async function getAdjRwThisMonth(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<AdjRwStats> {
+  const firstDay = queryBuilder.firstDayOfMonth(dbType);
+  const today = queryBuilder.currentDate(dbType);
+
+  const response = await executeSqlViaApi(
+    `SELECT sum(coalesce(adjrw,0)) as total FROM ipt WHERE dchdate >= ${firstDay} AND dchdate <= ${today}`,
+    config,
+  );
+  const adjRwTotal = parseQueryResponse(response, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  return { adjRwTotal };
 }
 
 // ---------------------------------------------------------------------------

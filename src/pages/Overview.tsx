@@ -13,11 +13,12 @@ import {
   User,
   Building,
   CalendarDays,
-  CalendarCheck,
-  CalendarMinus,
-  BarChart3,
-  Stethoscope,
-  Building2,
+  Receipt,
+  CreditCard,
+  Landmark,
+  BedDouble,
+  Activity,
+  HeartPulse,
   ChevronLeft,
   ChevronRight,
   ArrowDownToLine,
@@ -49,7 +50,6 @@ import { PttypeDistributionCard } from '@/components/dashboard/PttypeDistributio
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
-  getOverviewStats,
   getWeeklyMiniTrend,
   getTopDoctorsThisMonth,
   getRecentVisits,
@@ -57,6 +57,10 @@ import {
   getOpdDepartmentThisMonth,
   getPttypeDistribution,
   getReferStats,
+  getRevenueStats,
+  getBedStats,
+  getBedOccupancyStats,
+  getAdjRwThisMonth,
 } from '@/services/kpiService'
 import { formatDate, formatDateTime } from '@/utils/dateUtils'
 import { cn } from '@/lib/utils'
@@ -113,18 +117,6 @@ export default function Overview() {
   // ---------------------------------------------------------------------------
   // Data queries
   // ---------------------------------------------------------------------------
-
-  const overviewStatsFn = useCallback(
-    () => getOverviewStats(connectionConfig!, session!.databaseType),
-    [connectionConfig, session],
-  )
-  const {
-    data: overviewStats,
-    isLoading: isStatsLoading,
-  } = useQuery<Awaited<ReturnType<typeof getOverviewStats>>>({
-    queryFn: overviewStatsFn,
-    enabled: isConnected,
-  })
 
   const weeklyTrendFn = useCallback(
     () => getWeeklyMiniTrend(connectionConfig!, session!.databaseType),
@@ -188,6 +180,54 @@ export default function Overview() {
     enabled: isConnected,
   })
 
+  const revenueFn = useCallback(
+    () => getRevenueStats(connectionConfig!),
+    [connectionConfig],
+  )
+  const {
+    data: revenueData,
+    isLoading: isRevenueLoading,
+  } = useQuery<Awaited<ReturnType<typeof getRevenueStats>>>({
+    queryFn: revenueFn,
+    enabled: isConnected,
+  })
+
+  const bedStatsFn = useCallback(
+    () => getBedStats(connectionConfig!),
+    [connectionConfig],
+  )
+  const {
+    data: bedStats,
+    isLoading: isBedStatsLoading,
+  } = useQuery<Awaited<ReturnType<typeof getBedStats>>>({
+    queryFn: bedStatsFn,
+    enabled: isConnected,
+  })
+
+  const bedOccupancyFn = useCallback(
+    () => getBedOccupancyStats(connectionConfig!, session!.databaseType),
+    [connectionConfig, session],
+  )
+  const {
+    data: bedOccupancy,
+    isLoading: isBedOccupancyLoading,
+  } = useQuery<Awaited<ReturnType<typeof getBedOccupancyStats>>>({
+    queryFn: bedOccupancyFn,
+    enabled: isConnected,
+  })
+
+  const adjRwFn = useCallback(
+    () => getAdjRwThisMonth(connectionConfig!, session!.databaseType),
+    [connectionConfig, session],
+  )
+  const {
+    data: adjRwData,
+    isLoading: isAdjRwLoading,
+  } = useQuery<Awaited<ReturnType<typeof getAdjRwThisMonth>>>({
+    queryFn: adjRwFn,
+    enabled: isConnected,
+  })
+
   const pttypeFn = useCallback(
     () => getPttypeDistribution(connectionConfig!),
     [connectionConfig],
@@ -222,39 +262,6 @@ export default function Overview() {
     [weeklyTrend],
   )
 
-  // ---------------------------------------------------------------------------
-  // Mini stat card definitions
-  // ---------------------------------------------------------------------------
-  const miniStats = useMemo(
-    () => [
-      {
-        label: 'เข้ารับบริการเดือนนี้',
-        value: overviewStats?.totalVisitsThisMonth,
-        icon: <CalendarCheck className="h-4 w-4" />,
-      },
-      {
-        label: 'เข้ารับบริการเดือนที่แล้ว',
-        value: overviewStats?.totalVisitsLastMonth,
-        icon: <CalendarMinus className="h-4 w-4" />,
-      },
-      {
-        label: 'เฉลี่ยต่อวัน',
-        value: overviewStats?.avgDailyVisitsThisMonth,
-        icon: <BarChart3 className="h-4 w-4" />,
-      },
-      {
-        label: 'แพทย์ทั้งหมด',
-        value: overviewStats?.totalDoctors,
-        icon: <Stethoscope className="h-4 w-4" />,
-      },
-      {
-        label: 'แผนกทั้งหมด',
-        value: overviewStats?.totalDepartments,
-        icon: <Building2 className="h-4 w-4" />,
-      },
-    ],
-    [overviewStats],
-  )
 
   // ---------------------------------------------------------------------------
   // Session info rows helper
@@ -374,7 +381,7 @@ export default function Overview() {
         <Card className="p-3">
           <CardContent className="flex flex-col gap-1.5 p-0">
             <div className="flex items-center gap-1.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-100 text-sky-500 dark:bg-sky-500/10">
                 <Ambulance className="h-4 w-4" />
               </div>
               <p className="text-xs text-muted-foreground">ผู้ป่วยส่งต่อวันนี้</p>
@@ -407,24 +414,135 @@ export default function Overview() {
           </CardContent>
         </Card>
 
-        {/* Remaining mini stat cards */}
-        {miniStats.map((stat) => (
-          <Card key={stat.label} className="p-3">
-            <CardContent className="flex flex-col items-start gap-1.5 p-0">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                {stat.icon}
+        {/* Revenue total card */}
+        <Card className="p-3">
+          <CardContent className="flex h-full flex-col justify-between p-0">
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-violet-500 dark:bg-violet-500/10">
+                <Receipt className="h-4 w-4" />
               </div>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
-              {isStatsLoading ? (
-                <Skeleton className="h-6 w-16" />
-              ) : (
-                <p className="text-lg font-bold">
-                  {stat.value?.toLocaleString() ?? '0'}
+              <p className="text-xs text-muted-foreground">ค่ารักษาพยาบาล OPD วันนี้</p>
+            </div>
+            {isRevenueLoading ? (
+              <Skeleton className="h-8 w-full" />
+            ) : (
+              <div className="mt-2 flex flex-col items-end gap-0.5">
+                <p className="text-2xl font-bold tabular-nums">
+                  {Math.round(revenueData?.totalAmount ?? 0).toLocaleString()}
                 </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                <span className="text-xs text-muted-foreground">บาท</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Revenue split: ชำระเอง | ลูกหนี้ */}
+        <Card className="p-3">
+          <CardContent className="flex h-full flex-col justify-between p-0">
+            {isRevenueLoading ? (
+              <Skeleton className="h-full w-full" />
+            ) : (
+              <div className="flex h-full w-full items-stretch">
+                <div className="flex flex-1 flex-col justify-between py-0.5">
+                  <div className="flex items-center gap-1 text-xs text-emerald-500">
+                    <CreditCard className="h-3.5 w-3.5" />
+                    <span>ชำระเอง</span>
+                  </div>
+                  <div className="mt-2 flex flex-col items-end gap-0.5">
+                    <span className="text-2xl font-bold tabular-nums">
+                      {Math.round(revenueData?.selfPayAmount ?? 0).toLocaleString()}
+                    </span>
+                    <span className="text-xs text-muted-foreground">บาท</span>
+                  </div>
+                </div>
+                <div className="mx-3 w-px bg-border" />
+                <div className="flex flex-1 flex-col justify-between py-0.5">
+                  <div className="flex items-center gap-1 text-xs text-orange-500">
+                    <Landmark className="h-3.5 w-3.5" />
+                    <span>ลูกหนี้</span>
+                  </div>
+                  <div className="mt-2 flex flex-col items-end gap-0.5">
+                    <span className="text-2xl font-bold tabular-nums">
+                      {Math.round(revenueData?.receivableAmount ?? 0).toLocaleString()}
+                    </span>
+                    <span className="text-xs text-muted-foreground">บาท</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* จำนวนเตียงว่าง */}
+        <Card className="p-3">
+          <CardContent className="flex h-full flex-col justify-between p-0">
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-100 text-cyan-600 dark:bg-cyan-500/10">
+                <BedDouble className="h-4 w-4" />
+              </div>
+              <p className="text-xs text-muted-foreground">เตียงว่างวันนี้</p>
+            </div>
+            {isBedStatsLoading ? (
+              <Skeleton className="h-8 w-full" />
+            ) : (
+              <div className="mt-2 flex flex-col items-end gap-0.5">
+                <p className="text-2xl font-bold tabular-nums">
+                  {(bedStats?.availableBeds ?? 0).toLocaleString()}
+                </p>
+                <span className="text-xs text-muted-foreground">
+                  จาก {(bedStats?.totalBeds ?? 0).toLocaleString()} เตียง
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* อัตราครองเตียงเดือนนี้ */}
+        <Card className="p-3">
+          <CardContent className="flex h-full flex-col justify-between p-0">
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/10">
+                <Activity className="h-4 w-4" />
+              </div>
+              <p className="text-xs text-muted-foreground">ครองเตียงเดือนนี้</p>
+            </div>
+            {isBedOccupancyLoading ? (
+              <Skeleton className="h-8 w-full" />
+            ) : (
+              <div className="mt-2 flex flex-col items-end gap-0.5">
+                <p className="text-2xl font-bold tabular-nums">
+                  {(bedOccupancy?.occupancyRate ?? 0).toFixed(1)}
+                  <span className="text-lg">%</span>
+                </p>
+                <span className="text-xs text-muted-foreground" title={`(${bedOccupancy?.admitDays ?? 0} วันนอน × 100) ÷ (${bedOccupancy?.daysInPeriod ?? 0} วัน × ${bedOccupancy?.totalBeds ?? 0} เตียง)`}>
+                  {bedOccupancy?.admitDays ?? 0} วันนอน / {bedOccupancy?.daysInPeriod ?? 0} วัน
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* AdjRW เดือนนี้ */}
+        <Card className="p-3">
+          <CardContent className="flex h-full flex-col justify-between p-0">
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-500/10">
+                <HeartPulse className="h-4 w-4" />
+              </div>
+              <p className="text-xs text-muted-foreground">AdjRW เดือนนี้</p>
+            </div>
+            {isAdjRwLoading ? (
+              <Skeleton className="h-8 w-full" />
+            ) : (
+              <div className="mt-2 flex flex-col items-end gap-0.5">
+                <p className="text-2xl font-bold tabular-nums">
+                  {(adjRwData?.adjRwTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </p>
+                <span className="text-xs text-muted-foreground">RW สะสม</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* ------------------------------------------------------------------- */}

@@ -99,7 +99,7 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
         </div>
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
       </CardHeader>
-      <CardContent className="flex-1 pb-4">
+      <CardContent className="flex-1 min-h-0 pb-4">
         <ResponsiveContainer width="100%" height="100%" minHeight={240}>
           <BarChart
             data={chartData}
@@ -145,7 +145,7 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
                     <div style={{ fontWeight: 600, color: 'hsl(var(--popover-foreground))' }}>
                       {ward.xLabel} : {ward.wardName}
                     </div>
-                    <div style={{ color: 'hsl(var(--primary))', fontWeight: 500 }}>
+                    <div style={{ color: 'hsl(var(--chart-1))', fontWeight: 500 }}>
                       {count.toLocaleString()} คน
                     </div>
                   </div>
@@ -153,7 +153,7 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
               }}
               cursor={false}
             />
-            <Bar dataKey="patientCount" fill="hsl(199 89% 60% / 0.65)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+            <Bar dataKey="patientCount" fill="hsl(var(--chart-1) / 0.75)" radius={[4, 4, 0, 0]} maxBarSize={40} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

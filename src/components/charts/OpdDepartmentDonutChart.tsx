@@ -130,7 +130,7 @@ function DonutLegend({ slices }: LegendProps) {
   return (
     <div className="flex flex-col gap-1 flex-1 min-w-0">
       {slices.map((slice, index) => (
-        <div key={slice.name} className="flex items-center gap-2 text-xs min-w-0">
+        <div key={`${slice.name}-${index}`} className="flex items-center gap-2 text-xs min-w-0">
           <span
             className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
             style={{ backgroundColor: CHART_COLORS[index] ?? '#94a3b8' }}

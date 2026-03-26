@@ -102,8 +102,8 @@ export function VisitTrendChart({
           >
             <defs>
               <linearGradient id="visitCountGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(199 89% 48%)" stopOpacity={0.7} />
-                <stop offset="95%" stopColor="hsl(199 89% 48%)" stopOpacity={0.05} />
+                <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.7} />
+                <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.05} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
@@ -134,11 +134,11 @@ export function VisitTrendChart({
             <Area
               type="monotone"
               dataKey="visitCount"
-              stroke="hsl(199 89% 48%)"
+              stroke="hsl(var(--chart-1))"
               strokeWidth={2}
               fill="url(#visitCountGradient)"
               dot={false}
-              activeDot={{ r: 5, fill: 'hsl(199 89% 48%)' }}
+              activeDot={{ r: 5, fill: 'hsl(var(--chart-1))' }}
               cursor="pointer"
             />
           </AreaChart>

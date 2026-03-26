@@ -13,7 +13,6 @@ import {
   User,
   Building,
   CalendarDays,
-  Users,
   CalendarCheck,
   CalendarMinus,
   BarChart3,
@@ -21,6 +20,9 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Ambulance,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -41,9 +43,9 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { KpiCardGrid } from '@/components/dashboard/KpiCardGrid'
 import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
-import { DepartmentTable } from '@/components/dashboard/DepartmentTable'
 import { InpatientWardChart } from '@/components/charts/InpatientWardChart'
 import { OpdDepartmentDonutChart } from '@/components/charts/OpdDepartmentDonutChart'
+import { PttypeDistributionCard } from '@/components/dashboard/PttypeDistributionCard'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
@@ -53,6 +55,8 @@ import {
   getRecentVisits,
   getIpdWardDistribution,
   getOpdDepartmentThisMonth,
+  getPttypeDistribution,
+  getReferStats,
 } from '@/services/kpiService'
 import { formatDate, formatDateTime } from '@/utils/dateUtils'
 import { cn } from '@/lib/utils'
@@ -172,6 +176,32 @@ export default function Overview() {
     enabled: isConnected,
   })
 
+  const referFn = useCallback(
+    () => getReferStats(connectionConfig!),
+    [connectionConfig],
+  )
+  const {
+    data: referData,
+    isLoading: isReferLoading,
+  } = useQuery<Awaited<ReturnType<typeof getReferStats>>>({
+    queryFn: referFn,
+    enabled: isConnected,
+  })
+
+  const pttypeFn = useCallback(
+    () => getPttypeDistribution(connectionConfig!),
+    [connectionConfig],
+  )
+  const {
+    data: pttypeData,
+    isLoading: isPttypeLoading,
+    isError: isPttypeError,
+    error: pttypeError,
+  } = useQuery<Awaited<ReturnType<typeof getPttypeDistribution>>>({
+    queryFn: pttypeFn,
+    enabled: isConnected,
+  })
+
   const recentVisitsFn = useCallback(
     () => getRecentVisits(connectionConfig!, session!.databaseType),
     [connectionConfig, session],
@@ -197,11 +227,6 @@ export default function Overview() {
   // ---------------------------------------------------------------------------
   const miniStats = useMemo(
     () => [
-      {
-        label: 'ผู้ป่วยทั้งหมด',
-        value: overviewStats?.totalRegisteredPatients,
-        icon: <Users className="h-4 w-4" />,
-      },
       {
         label: 'เข้ารับบริการเดือนนี้',
         value: overviewStats?.totalVisitsThisMonth,
@@ -342,9 +367,47 @@ export default function Overview() {
       <KpiCardGrid />
 
       {/* ------------------------------------------------------------------- */}
-      {/* 3. Stats Row - 6 mini stat cards                                     */}
+      {/* 3. Stats Row - Refer card + 5 mini stat cards                        */}
       {/* ------------------------------------------------------------------- */}
       <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
+        {/* Refer card */}
+        <Card className="p-3">
+          <CardContent className="flex flex-col gap-1.5 p-0">
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Ambulance className="h-4 w-4" />
+              </div>
+              <p className="text-xs text-muted-foreground">ผู้ป่วยส่งต่อวันนี้</p>
+            </div>
+            {isReferLoading ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
+              <div className="flex w-full justify-around">
+                <div className="flex flex-col items-center gap-0.5">
+                  <div className="flex items-center gap-1 text-xs text-emerald-500">
+                    <ArrowDownToLine className="h-3.5 w-3.5" />
+                    <span>In</span>
+                  </div>
+                  <span className="text-lg font-bold">
+                    {(referData?.referIn ?? 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="w-px bg-border" />
+                <div className="flex flex-col items-center gap-0.5">
+                  <div className="flex items-center gap-1 text-xs text-orange-500">
+                    <ArrowUpFromLine className="h-3.5 w-3.5" />
+                    <span>Out</span>
+                  </div>
+                  <span className="text-lg font-bold">
+                    {(referData?.referOut ?? 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Remaining mini stat cards */}
         {miniStats.map((stat) => (
           <Card key={stat.label} className="p-3">
             <CardContent className="flex flex-col items-start gap-1.5 p-0">
@@ -368,11 +431,12 @@ export default function Overview() {
       {/* 4. OPD Donut + Weekly Trend + Top Doctors  (3 / 6 / 3)             */}
       {/* ------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* OPD Department Donut (4/12) */}
-        <OpdDepartmentDonutChart
-          data={opdDepartmentData ?? []}
-          isLoading={isOpdDeptLoading}
-          error={isOpdDeptError ? opdDeptError : null}
+        {/* Pttype Distribution (4/12) */}
+        <PttypeDistributionCard
+          data={pttypeData ?? null}
+          isLoading={isPttypeLoading}
+          isError={isPttypeError}
+          error={isPttypeError ? pttypeError : null}
           className="lg:col-span-4"
         />
 
@@ -413,7 +477,7 @@ export default function Overview() {
                       const parts = val.split('-')
                       if (parts.length === 3) {
                         const d = new Date(val)
-                        return d.toLocaleDateString('en-US', {
+                        return d.toLocaleDateString('th-TH', {
                           month: 'short',
                           day: 'numeric',
                         })
@@ -441,7 +505,7 @@ export default function Overview() {
                     stroke="hsl(var(--chart-1))"
                     strokeWidth={2}
                     fill="url(#weeklyVisitGradient)"
-                    dot={false}
+                    dot={{ r: 3, fill: 'hsl(var(--chart-1))', strokeWidth: 0 }}
                     activeDot={{ r: 5, fill: 'hsl(var(--chart-1))' }}
                     isAnimationActive={false}
                   />
@@ -527,18 +591,13 @@ export default function Overview() {
       {/* 6. Department Workload + Recent Visits                               */}
       {/* ------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left: Department Workload (4/12 width) */}
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle className="text-lg">ปริมาณงานแผนก</CardTitle>
-            <CardDescription>
-              สัดส่วนการเข้ารับบริการวันนี้แยกตามแผนก
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DepartmentTable />
-          </CardContent>
-        </Card>
+        {/* OPD Department Donut (4/12) */}
+        <OpdDepartmentDonutChart
+          data={opdDepartmentData ?? []}
+          isLoading={isOpdDeptLoading}
+          error={isOpdDeptError ? opdDeptError : null}
+          className="lg:col-span-4"
+        />
 
         {/* Middle: Inpatient Ward Distribution (1/4 width) */}
         <InpatientWardChart

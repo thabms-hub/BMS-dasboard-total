@@ -310,6 +310,8 @@ export interface AppointmentStats {
   attended: number;
   notAttended: number;
   attendanceRate: number;
+  lastWeekSameDayTotal: number;
+  changePercent: number; // positive = increase, negative = decrease
 }
 
 /**
@@ -317,18 +319,26 @@ export interface AppointmentStats {
  */
 export async function getAppointmentStats(
   config: ConnectionConfig,
+  dbType: DatabaseType,
 ): Promise<AppointmentStats> {
-  const [totalResp, attendedResp, notAttendedResp] = await Promise.all([
+  const today = queryBuilder.currentDate(dbType);
+  const lastWeekSameDay = queryBuilder.dateSubtract(dbType, 7);
+
+  const [totalResp, attendedResp, notAttendedResp, lastWeekResp] = await Promise.all([
     executeSqlViaApi(
-      `SELECT count(distinct hn) as total FROM oapp WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = current_date`,
+      `SELECT count(distinct hn) as total FROM oapp WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = ${today}`,
       config,
     ),
     executeSqlViaApi(
-      `SELECT count(distinct ovst.hn) as attended FROM oapp, ovst WHERE oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate AND (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = current_date`,
+      `SELECT count(distinct ovst.hn) as attended FROM oapp, ovst WHERE oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate AND (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = ${today}`,
       config,
     ),
     executeSqlViaApi(
-      `SELECT count(distinct oapp.hn) as not_attended FROM oapp LEFT JOIN ovst ON oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = current_date AND ovst.hn IS NULL`,
+      `SELECT count(distinct oapp.hn) as not_attended FROM oapp LEFT JOIN ovst ON oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = ${today} AND ovst.hn IS NULL`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT count(distinct hn) as total FROM oapp WHERE nextdate = ${lastWeekSameDay}`,
       config,
     ),
   ]);
@@ -336,9 +346,13 @@ export async function getAppointmentStats(
   const total = parseQueryResponse(totalResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
   const attended = parseQueryResponse(attendedResp, (row) => Number(row['attended'] ?? 0))[0] ?? 0;
   const notAttended = parseQueryResponse(notAttendedResp, (row) => Number(row['not_attended'] ?? 0))[0] ?? 0;
+  const lastWeekSameDayTotal = parseQueryResponse(lastWeekResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
   const attendanceRate = total > 0 ? Math.round((attended / total) * 100) : 0;
+  const changePercent = lastWeekSameDayTotal > 0
+    ? Math.round(((total - lastWeekSameDayTotal) / lastWeekSameDayTotal) * 100)
+    : 0;
 
-  return { totalAppointments: total, attended, notAttended, attendanceRate };
+  return { totalAppointments: total, attended, notAttended, attendanceRate, lastWeekSameDayTotal, changePercent };
 }
 
 /**
@@ -1087,8 +1101,8 @@ export async function getDeathSummary(
 }
 
 /**
- * OPD patient count grouped by specialty (spclty) for the current month.
- * Only OPD visits (an IS NULL). Returns all departments ordered by count desc.
+ * Visit count grouped by specialty (spclty) for the current month.
+ * Counts all visits from ovst (OPD + IPD). Returns all departments ordered by count desc.
  */
 export async function getOpdDepartmentThisMonth(
   config: ConnectionConfig,
@@ -1100,8 +1114,7 @@ export async function getOpdDepartmentThisMonth(
     `SELECT s.name as spclty_name, COUNT(DISTINCT ovst.vn) as count_vn ` +
     `FROM ovst ` +
     `INNER JOIN spclty s ON s.spclty = ovst.spclty ` +
-    `WHERE ovst.an IS NULL ` +
-    `AND ${monthExpr} = ${currentMonthExpr} ` +
+    `WHERE ${monthExpr} = ${currentMonthExpr} ` +
     `GROUP BY s.name ` +
     `ORDER BY count_vn DESC`;
   const response = await executeSqlViaApi(sql, config);
@@ -1350,3 +1363,66 @@ export async function getDentistrySummary(
     doctorPerformance,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Refer-in / Refer-out stats for today
+// ---------------------------------------------------------------------------
+
+export interface ReferStats {
+  referIn: number;
+  referOut: number;
+}
+
+export async function getReferStats(
+  config: ConnectionConfig,
+): Promise<ReferStats> {
+  const [inResp, outResp] = await Promise.all([
+    executeSqlViaApi(
+      `SELECT count(distinct hn) as total FROM referin WHERE refer_date = current_date`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT count(distinct hn) as total FROM referout WHERE refer_date = current_date`,
+      config,
+    ),
+  ]);
+  const referIn = parseQueryResponse(inResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const referOut = parseQueryResponse(outResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  return { referIn, referOut };
+}
+
+// ---------------------------------------------------------------------------
+// Pttype price group distribution for today
+// ---------------------------------------------------------------------------
+
+export interface PttypeGroupItem {
+  groupName: string;
+  visitCount: number;
+  percent: number;
+}
+
+export async function getPttypeDistribution(
+  config: ConnectionConfig,
+): Promise<PttypeGroupItem[]> {
+  const sql =
+    `SELECT pttype_price_group_name, count(distinct vn) as visit_count ` +
+    `FROM pttype_price_group p1, pttype p2, ovst ` +
+    `WHERE p1.pttype_price_group_id = p2.pttype_price_group_id ` +
+    `AND p2.pttype = ovst.pttype ` +
+    `AND vstdate = current_date ` +
+    `GROUP BY pttype_price_group_name ` +
+    `ORDER BY visit_count DESC`;
+
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => ({
+    groupName: String(row['pttype_price_group_name'] ?? ''),
+    visitCount: Number(row['visit_count'] ?? 0),
+  }));
+
+  const total = rows.reduce((sum, r) => sum + r.visitCount, 0);
+  return rows.map((r) => ({
+    ...r,
+    percent: total > 0 ? Math.round((r.visitCount / total) * 100) : 0,
+  }));
+}
+

@@ -16,8 +16,8 @@ export function KpiCardGrid() {
   const enabled = connectionConfig !== null && session !== null
 
   const appointmentFn = useCallback(
-    () => getAppointmentStats(connectionConfig!),
-    [connectionConfig],
+    () => getAppointmentStats(connectionConfig!, session!.databaseType),
+    [connectionConfig, session],
   )
   const {
     data: appointmentData,

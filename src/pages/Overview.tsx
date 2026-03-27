@@ -51,8 +51,8 @@ import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
   getWeeklyMiniTrend,
-  getThisMonthVisitsByClinic,
-  getRecentVisits,
+  getTodayVisitsByClinic,
+  getThisMonthIPDDischarges,
   getIpdWardDistribution,
   getOpdDepartmentThisMonth,
   getPttypeDistribution,
@@ -130,23 +130,10 @@ function AutoCompactNumber({ value, className }: { value: number; className?: st
   )
 }
 
-/** Format vsttime (e.g. "14:30:00" or "143000") into "HH:MM" */
-function formatVisitTime(raw: string): string {
-  if (!raw) return '--:--'
-  // Handle "HH:MM:SS" format
-  if (raw.includes(':')) {
-    return raw.substring(0, 5)
-  }
-  // Handle numeric "HHMMSS" format
-  const padded = raw.padStart(6, '0')
-  return `${padded.substring(0, 2)}:${padded.substring(2, 4)}`
-}
-
 export default function Overview() {
   const { session, connectionConfig, refreshSession } = useBmsSessionContext()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
-  const [recentVisitsPage, setRecentVisitsPage] = useState(0)
   const [clinicsPage, setClinicsPage] = useState(0)
   const weeklyTrendRef = useRef<HTMLDivElement>(null)
 
@@ -180,15 +167,15 @@ export default function Overview() {
     enabled: isConnected,
   })
 
-  const thisMonthClinicsFn = useCallback(
-    () => getThisMonthVisitsByClinic(connectionConfig!, session!.databaseType),
+  const todayClinicsFn = useCallback(
+    () => getTodayVisitsByClinic(connectionConfig!, session!.databaseType),
     [connectionConfig, session],
   )
   const {
     data: todayClinics,
     isLoading: isClinicsLoading,
-  } = useQuery<Awaited<ReturnType<typeof getThisMonthVisitsByClinic>>>({
-    queryFn: thisMonthClinicsFn,
+  } = useQuery<Awaited<ReturnType<typeof getTodayVisitsByClinic>>>({
+    queryFn: todayClinicsFn,
     enabled: isConnected,
   })
 
@@ -292,15 +279,17 @@ export default function Overview() {
     enabled: isConnected,
   })
 
-  const recentVisitsFn = useCallback(
-    () => getRecentVisits(connectionConfig!, session!.databaseType),
+  const ipdDischargesFn = useCallback(
+    () => getThisMonthIPDDischarges(connectionConfig!, session!.databaseType),
     [connectionConfig, session],
   )
   const {
-    data: recentVisits,
-    isLoading: isVisitsLoading,
-  } = useQuery<Awaited<ReturnType<typeof getRecentVisits>>>({
-    queryFn: recentVisitsFn,
+    data: ipdDischarges,
+    isLoading: isIPDDischargesLoading,
+    isError: isIPDDischargesError,
+    error: ipdDischargesError,
+  } = useQuery<Awaited<ReturnType<typeof getThisMonthIPDDischarges>>>({
+    queryFn: ipdDischargesFn,
     enabled: isConnected,
   })
 
@@ -696,7 +685,7 @@ export default function Overview() {
         {/* Today's OPD visits by clinic (3/12) */}
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-lg">ผู้ป่วยมารับบริการเดือนนี้</CardTitle>
+            <CardTitle className="text-lg">ผู้ป่วยมารับบริการวันนี้</CardTitle>
             <CardDescription>เรียงตามจำนวนผู้รับบริการ (ตามที่ส่งตรวจ)</CardDescription>
           </CardHeader>
           <CardContent>
@@ -778,81 +767,17 @@ export default function Overview() {
           className="lg:col-span-5"
         />
 
-        {/* Right: Recent Visits (3/12 width — matches Top Doctors) */}
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-lg">การเข้ารับบริการล่าสุด</CardTitle>
-            <CardDescription>10 รายการล่าสุดที่บันทึก</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isVisitsLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <Skeleton className="h-5 w-12 rounded" />
-                    <div className="flex-1 space-y-1">
-                      <Skeleton className="h-3 w-28" />
-                      <Skeleton className="h-3 w-20" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : recentVisits && recentVisits.length > 0 ? (
-              <>
-                <div className="space-y-0 divide-y">
-                  {recentVisits.slice(recentVisitsPage * 5, (recentVisitsPage + 1) * 5).map((visit, index) => (
-                    <div
-                      key={`${visit.vn}-${index}`}
-                      className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
-                    >
-                      <Badge
-                        variant="secondary"
-                        className="shrink-0 font-mono text-[10px] tabular-nums"
-                      >
-                        {formatVisitTime(visit.vsttime)}
-                      </Badge>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {visit.departmentName}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {visit.doctorName}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {recentVisits.length > 5 && (
-                  <div className="flex items-center justify-between pt-3 text-sm text-muted-foreground">
-                    <span>
-                      หน้า {recentVisitsPage + 1} / {Math.ceil(recentVisits.length / 5)}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setRecentVisitsPage((p) => p - 1)}
-                        disabled={recentVisitsPage === 0}
-                        className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setRecentVisitsPage((p) => p + 1)}
-                        disabled={recentVisitsPage >= Math.ceil(recentVisits.length / 5) - 1}
-                        className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                ไม่มีการเข้ารับบริการล่าสุดที่บันทึก
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        {/* Right: IPD Discharges this month (3/12 width) */}
+        <PttypeDistributionCard
+          data={ipdDischarges ?? null}
+          isLoading={isIPDDischargesLoading}
+          isError={isIPDDischargesError}
+          error={isIPDDischargesError ? ipdDischargesError : null}
+          title="ผู้ป่วยใน ที่จำหน่ายในเดือนนี้"
+          description="แยกตามกลุ่มสิทธิ์การรักษา"
+          emptyText="ไม่มีข้อมูลผู้ป่วยในที่จำหน่ายในเดือนนี้"
+          className="lg:col-span-3"
+        />
       </div>
 
       {/* ------------------------------------------------------------------- */}

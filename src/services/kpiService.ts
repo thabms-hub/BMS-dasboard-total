@@ -162,7 +162,7 @@ export async function getTodayDischargedCount(
   config: ConnectionConfig,
   dbType: DatabaseType,
 ): Promise<number> {
-  const sql = `SELECT COUNT(*) as total FROM ipt WHERE dchdate = ${queryBuilder.currentDate(dbType)}`;
+  const sql = `SELECT COUNT(*) as total FROM ipt WHERE confirm_discharge = 'Y' AND dchdate = ${queryBuilder.currentDate(dbType)}`;
   const response = await executeSqlViaApi(sql, config);
   const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
   return rows[0] ?? 0;
@@ -880,7 +880,7 @@ export async function getTopDoctorsThisMonth(
 }
 
 // ---------------------------------------------------------------------------
-// This month's OPD visits by clinic/specialty
+// Today's OPD visits by clinic/specialty
 // ---------------------------------------------------------------------------
 
 export interface ClinicVisitCount {
@@ -889,20 +889,19 @@ export interface ClinicVisitCount {
 }
 
 /**
- * Count of distinct OPD visits this month, grouped by specialty (clinic),
+ * Count of distinct OPD visits today, grouped by specialty (clinic),
  * ordered descending by visit count.
  */
-export async function getThisMonthVisitsByClinic(
+export async function getTodayVisitsByClinic(
   config: ConnectionConfig,
   dbType: DatabaseType,
 ): Promise<ClinicVisitCount[]> {
-  const firstDay = queryBuilder.firstDayOfMonth(dbType);
   const today = queryBuilder.currentDate(dbType);
   const sql =
     `SELECT sp.name as spclty_name, count(distinct o.vn) as visit_count ` +
     `FROM ovst o, spclty sp ` +
     `WHERE o.spclty = sp.spclty ` +
-    `AND o.vstdate >= ${firstDay} AND o.vstdate <= ${today} ` +
+    `AND o.vstdate = ${today} ` +
     `GROUP BY spclty_name ` +
     `ORDER BY visit_count DESC`;
   const response = await executeSqlViaApi(sql, config);
@@ -1477,12 +1476,12 @@ export async function getBedStats(config: ConnectionConfig): Promise<BedStats> {
       config,
     ),
     executeSqlViaApi(
-      `SELECT count(distinct i2.an) as total FROM roomno r,bedno b, bed_status_type bt,ipt i1,iptadm i2, ward w ` +
-      `WHERE r.roomno = b.roomno AND b.bedno = i2.bedno AND i2.an = i1.an AND i1.ward = w.ward ` +
-      `AND i1.confirm_discharge='N' AND b.bed_status_type_id = bt.bed_status_type_id ` +
-      `AND bt.is_available = 'Y' AND w.ward_active = 'Y' ` +
-      `AND r.name NOT LIKE '%เสริม%' AND r.name NOT LIKE '%แทรก%' AND r.name NOT LIKE '%ยกเลิก%' ` +
-      `AND r.room_status_type_id = 1`,
+      `SELECT count(distinct i.an) as total ` +
+      `FROM ipt i, ward w ` +
+      `WHERE i.ward = w.ward ` +
+      `AND i.confirm_discharge = 'N' ` +
+      `AND w.ward_active = 'Y' ` +
+      `AND lower(w.name) NOT LIKE '%home%ward%'`,
       config,
     ),
     executeSqlViaApi(
@@ -1496,7 +1495,7 @@ export async function getBedStats(config: ConnectionConfig): Promise<BedStats> {
       `AND r.name NOT LIKE '%แทรก%' ` +
       `AND r.name NOT LIKE '%ยกเลิก%' ` +
       `AND r.name NOT LIKE '%รอรับ%' ` +
-      `AND r.room_status_type_id = 1 ` +
+      `AND b.bed_status_type_id = 1 ` +
       `AND lower(w.name) NOT LIKE '%home%ward%'`,
       config,
     ),
@@ -1600,6 +1599,38 @@ export async function getPttypeDistribution(
   const rows = parseQueryResponse(response, (row) => ({
     groupName: String(row['pttype_price_group_name'] ?? ''),
     visitCount: Number(row['visit_count'] ?? 0),
+  }));
+
+  const total = rows.reduce((sum, r) => sum + r.visitCount, 0);
+  return rows.map((r) => ({
+    ...r,
+    percent: total > 0 ? Math.round((r.visitCount / total) * 100) : 0,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// IPD discharges this month grouped by pttype price group
+// ---------------------------------------------------------------------------
+
+export async function getThisMonthIPDDischarges(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<PttypeGroupItem[]> {
+  const firstDay = queryBuilder.firstDayOfMonth(dbType);
+  const today = queryBuilder.currentDate(dbType);
+  const sql =
+    `SELECT pttype_price_group_name, count(distinct an) as discharge_count ` +
+    `FROM pttype_price_group p1, pttype p2, ipt ` +
+    `WHERE p1.pttype_price_group_id = p2.pttype_price_group_id ` +
+    `AND p2.pttype = ipt.pttype ` +
+    `AND dchdate >= ${firstDay} AND dchdate <= ${today} ` +
+    `GROUP BY pttype_price_group_name ` +
+    `ORDER BY discharge_count DESC`;
+
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => ({
+    groupName: String(row['pttype_price_group_name'] ?? ''),
+    visitCount: Number(row['discharge_count'] ?? 0),
   }));
 
   const total = rows.reduce((sum, r) => sum + r.visitCount, 0);

@@ -26,6 +26,9 @@ interface PttypeDistributionCardProps {
   isError?: boolean
   error?: Error | null
   className?: string
+  title?: string
+  description?: string
+  emptyText?: string
 }
 
 export function PttypeDistributionCard({
@@ -34,6 +37,9 @@ export function PttypeDistributionCard({
   isError,
   error,
   className,
+  title = 'ผู้ป่วย (OPD) มารับบริการในวันนี้',
+  description = 'แยกตามกลุ่มสิทธิ์การรักษา',
+  emptyText = 'ไม่มีข้อมูลการเข้ารับบริการ',
 }: PttypeDistributionCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null)
 
@@ -41,14 +47,14 @@ export function PttypeDistributionCard({
     <Card ref={cardRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
         <div>
-          <CardTitle className="text-lg">สัดส่วนผู้มารับบริการในวันนี้</CardTitle>
-          <CardDescription>แยกตามกลุ่มสิทธิ์การรักษา</CardDescription>
+          <CardTitle className="text-lg">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
         </div>
         {!isLoading && !isError && data && data.length > 0 && (
           <ChartExportMenu
             containerRef={cardRef}
             data={data}
-            title="สัดส่วนผู้มารับบริการวันนี้"
+            title={title}
           />
         )}
       </CardHeader>
@@ -65,7 +71,7 @@ export function PttypeDistributionCard({
         ) : isError ? (
           <p className="text-xs text-destructive">{error?.message ?? 'ไม่สามารถโหลดข้อมูลได้'}</p>
         ) : !data || data.length === 0 ? (
-          <p className="text-xs text-muted-foreground">ไม่มีข้อมูลการเข้ารับบริการในวันนี้</p>
+          <p className="text-xs text-muted-foreground">{emptyText}</p>
         ) : (
           <div className="space-y-2.5">
             {data.map((item, index) => (

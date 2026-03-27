@@ -22,14 +22,15 @@ export function DepartmentPageTemplate({
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <Icon className="h-5 w-5 text-primary" />
+      <div className="flex items-center gap-5">
+        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 shadow-md ring-1 ring-primary/20">
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/30 to-transparent" />
+          <Icon className="relative h-10 w-10 text-primary drop-shadow-sm" />
         </div>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
+        <div className="space-y-0.5">
+          <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
           {subtitle && (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className="text-base text-muted-foreground">{subtitle}</p>
           )}
         </div>
       </div>

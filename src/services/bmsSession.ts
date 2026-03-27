@@ -164,11 +164,23 @@ export async function executeSqlViaApi(
   const timeoutId = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${config.apiUrl}/api/sql`, {
+    // In dev mode, route through local CORS proxy to avoid browser CORS blocks.
+    // In production the server must set correct CORS headers.
+    const isDev = import.meta.env.DEV;
+    const fetchUrl = isDev
+      ? 'http://localhost:3001/proxy'
+      : `${config.apiUrl}/api/sql`;
+
+    const extraHeaders: Record<string, string> = isDev
+      ? { 'x-target-url': config.apiUrl }
+      : {};
+
+    const response = await fetch(fetchUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${config.bearerToken}`,
         'Content-Type': 'application/json',
+        ...extraHeaders,
       },
       body: JSON.stringify({ sql, app: config.appIdentifier }),
       signal: controller.signal,

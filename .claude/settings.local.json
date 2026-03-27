@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(\"d:\\\\Tha\\\\claude\\\\BMSsessionID\\\\bms-session-id-demo-dashboard\\\\src\\\\services\\\\kpiService.ts\")",
+      "Bash(npx eslint:*)"
+    ]
+  }
+}

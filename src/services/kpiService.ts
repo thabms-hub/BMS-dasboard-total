@@ -12,6 +12,7 @@ import type {
   DentistryCase,
   DentistryDoctorPerformance,
   DentistryInsuranceDistribution,
+  DentistryServiceTypeCount,
   DentistryVisitTypeDistribution,
   DentistrySummary,
   DoctorWorkload,
@@ -273,7 +274,7 @@ export async function getIpdWardDistribution(
       yesterdayPatientCount: yesterdayTotalCount,
       percentageChange: percentageChange,
     }));
-  } catch (error) {
+  } catch {
     // Fallback: keep the ward code, no bed count.
     const fallbackSql =
       `SELECT ward as wardcode, COALESCE(ward, 'ไม่ระบุ') as ward_name, COUNT(DISTINCT an) as patient_count ` +
@@ -879,6 +880,39 @@ export async function getTopDoctorsThisMonth(
 }
 
 // ---------------------------------------------------------------------------
+// This month's OPD visits by clinic/specialty
+// ---------------------------------------------------------------------------
+
+export interface ClinicVisitCount {
+  clinicName: string;
+  visitCount: number;
+}
+
+/**
+ * Count of distinct OPD visits this month, grouped by specialty (clinic),
+ * ordered descending by visit count.
+ */
+export async function getThisMonthVisitsByClinic(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<ClinicVisitCount[]> {
+  const firstDay = queryBuilder.firstDayOfMonth(dbType);
+  const today = queryBuilder.currentDate(dbType);
+  const sql =
+    `SELECT sp.name as spclty_name, count(distinct o.vn) as visit_count ` +
+    `FROM ovst o, spclty sp ` +
+    `WHERE o.spclty = sp.spclty ` +
+    `AND o.vstdate >= ${firstDay} AND o.vstdate <= ${today} ` +
+    `GROUP BY spclty_name ` +
+    `ORDER BY visit_count DESC`;
+  const response = await executeSqlViaApi(sql, config);
+  return parseQueryResponse(response, (row) => ({
+    clinicName: String(row['spclty_name'] ?? 'ไม่ระบุ'),
+    visitCount: Number(row['visit_count'] ?? 0),
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // Trend Summary & Extended Trend KPIs
 // ---------------------------------------------------------------------------
 
@@ -1078,8 +1112,9 @@ export async function getMedicationCostSummary(
  */
 export async function getDeathSummary(
   config: ConnectionConfig,
-  _dbType: DatabaseType,
+  dbType: DatabaseType,
 ): Promise<{ totalDeaths: number; thisYearDeaths: number; thisMonthDeaths: number }> {
+  void dbType; // parameter reserved for future db-aware date formatting
   const currentYear = new Date().getFullYear();
   const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
   const yearStart = `${currentYear}-01-01`;
@@ -1432,10 +1467,11 @@ export interface BedStats {
   totalBeds: number;
   occupiedBeds: number;
   availableBeds: number;
+  systemBeds: number;
 }
 
 export async function getBedStats(config: ConnectionConfig): Promise<BedStats> {
-  const [totalResp, occupiedResp] = await Promise.all([
+  const [totalResp, occupiedResp, systemBedsResp] = await Promise.all([
     executeSqlViaApi(
       `SELECT sum(coalesce(bedcount,0)) as total FROM ward WHERE ward_active='Y'`,
       config,
@@ -1449,10 +1485,26 @@ export async function getBedStats(config: ConnectionConfig): Promise<BedStats> {
       `AND r.room_status_type_id = 1`,
       config,
     ),
+    executeSqlViaApi(
+      `SELECT count(distinct b.bedno) as total ` +
+      `FROM roomno r, bedno b, bed_status_type bt, ward w ` +
+      `WHERE r.roomno = b.roomno ` +
+      `AND b.bed_status_type_id = bt.bed_status_type_id ` +
+      `AND bt.is_available = 'Y' ` +
+      `AND w.ward_active = 'Y' ` +
+      `AND r.name NOT LIKE '%เสริม%' ` +
+      `AND r.name NOT LIKE '%แทรก%' ` +
+      `AND r.name NOT LIKE '%ยกเลิก%' ` +
+      `AND r.name NOT LIKE '%รอรับ%' ` +
+      `AND r.room_status_type_id = 1 ` +
+      `AND lower(w.name) NOT LIKE '%home%ward%'`,
+      config,
+    ),
   ]);
   const totalBeds = parseQueryResponse(totalResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
   const occupiedBeds = parseQueryResponse(occupiedResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
-  return { totalBeds, occupiedBeds, availableBeds: Math.max(0, totalBeds - occupiedBeds) };
+  const systemBeds = parseQueryResponse(systemBedsResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  return { totalBeds, occupiedBeds, availableBeds: Math.max(0, systemBeds - occupiedBeds), systemBeds };
 }
 
 // ---------------------------------------------------------------------------

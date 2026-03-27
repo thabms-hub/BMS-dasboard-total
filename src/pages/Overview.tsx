@@ -2,7 +2,7 @@
 // BMS Session KPI Dashboard - Overview Page (Rich Command Center)
 // =============================================================================
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useLayoutEffect } from 'react'
 import {
   RefreshCw,
   Database,
@@ -51,7 +51,7 @@ import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
   getWeeklyMiniTrend,
-  getTopDoctorsThisMonth,
+  getThisMonthVisitsByClinic,
   getRecentVisits,
   getIpdWardDistribution,
   getOpdDepartmentThisMonth,
@@ -80,6 +80,56 @@ function truncateUrl(url: string, maxLength = 40): string {
   return url.substring(0, maxLength) + '...'
 }
 
+/** Format a number into compact K/M notation */
+function formatCompact(value: number): string {
+  if (value >= 1_000_000) {
+    return (value / 1_000_000).toFixed(2) + 'M'
+  }
+  if (value >= 1_000) {
+    return (value / 1_000).toFixed(1) + 'K'
+  }
+  return value.toLocaleString()
+}
+
+/**
+ * Renders a number in full; switches to K/M compact notation only when
+ * the full text overflows its container (detected via ResizeObserver).
+ */
+function AutoCompactNumber({ value, className }: { value: number; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [compact, setCompact] = useState(false)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const check = () => {
+      const style = window.getComputedStyle(el)
+      const probe = document.createElement('span')
+      probe.style.cssText =
+        `position:absolute;visibility:hidden;white-space:nowrap;` +
+        `font-size:${style.fontSize};font-family:${style.fontFamily};` +
+        `font-weight:${style.fontWeight};letter-spacing:${style.letterSpacing}`
+      probe.textContent = value.toLocaleString()
+      document.body.appendChild(probe)
+      const needed = probe.offsetWidth
+      document.body.removeChild(probe)
+      setCompact(needed > el.clientWidth)
+    }
+
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [value])
+
+  return (
+    <span ref={ref} className={cn('block min-w-0 overflow-hidden', className)}>
+      {compact ? formatCompact(value) : value.toLocaleString()}
+    </span>
+  )
+}
+
 /** Format vsttime (e.g. "14:30:00" or "143000") into "HH:MM" */
 function formatVisitTime(raw: string): string {
   if (!raw) return '--:--'
@@ -97,7 +147,7 @@ export default function Overview() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [recentVisitsPage, setRecentVisitsPage] = useState(0)
-  const [doctorsPage, setDoctorsPage] = useState(0)
+  const [clinicsPage, setClinicsPage] = useState(0)
   const weeklyTrendRef = useRef<HTMLDivElement>(null)
 
   const handleRefresh = useCallback(async () => {
@@ -130,15 +180,15 @@ export default function Overview() {
     enabled: isConnected,
   })
 
-  const topDoctorsFn = useCallback(
-    () => getTopDoctorsThisMonth(connectionConfig!, session!.databaseType),
+  const thisMonthClinicsFn = useCallback(
+    () => getThisMonthVisitsByClinic(connectionConfig!, session!.databaseType),
     [connectionConfig, session],
   )
   const {
-    data: topDoctors,
-    isLoading: isDoctorsLoading,
-  } = useQuery<Awaited<ReturnType<typeof getTopDoctorsThisMonth>>>({
-    queryFn: topDoctorsFn,
+    data: todayClinics,
+    isLoading: isClinicsLoading,
+  } = useQuery<Awaited<ReturnType<typeof getThisMonthVisitsByClinic>>>({
+    queryFn: thisMonthClinicsFn,
     enabled: isConnected,
   })
 
@@ -376,7 +426,7 @@ export default function Overview() {
       {/* ------------------------------------------------------------------- */}
       {/* 3. Stats Row - Refer card + 5 mini stat cards                        */}
       {/* ------------------------------------------------------------------- */}
-      <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {/* Refer card */}
         <Card className="p-3">
           <CardContent className="flex flex-col gap-1.5 p-0">
@@ -416,7 +466,7 @@ export default function Overview() {
 
         {/* Revenue total card */}
         <Card className="p-3">
-          <CardContent className="flex h-full flex-col justify-between p-0">
+          <CardContent className="flex h-full flex-col p-0">
             <div className="flex items-center gap-1.5">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-violet-500 dark:bg-violet-500/10">
                 <Receipt className="h-4 w-4" />
@@ -424,13 +474,16 @@ export default function Overview() {
               <p className="text-xs text-muted-foreground">ค่ารักษาพยาบาล OPD วันนี้</p>
             </div>
             {isRevenueLoading ? (
-              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full mt-2" />
             ) : (
-              <div className="mt-2 flex flex-col items-end gap-0.5">
-                <p className="text-2xl font-bold tabular-nums">
-                  {Math.round(revenueData?.totalAmount ?? 0).toLocaleString()}
-                </p>
-                <span className="text-xs text-muted-foreground">บาท</span>
+              <div className="flex flex-1 items-center justify-center">
+                <div className="flex min-w-0 max-w-full items-baseline gap-1">
+                  <AutoCompactNumber
+                    value={Math.round(revenueData?.totalAmount ?? 0)}
+                    className="text-base font-bold tabular-nums sm:text-xl lg:text-2xl"
+                  />
+                  <span className="shrink-0 text-xs font-normal text-muted-foreground">บาท</span>
+                </div>
               </div>
             )}
           </CardContent>
@@ -438,37 +491,39 @@ export default function Overview() {
 
         {/* Revenue split: ชำระเอง | ลูกหนี้ */}
         <Card className="p-3">
-          <CardContent className="flex h-full flex-col justify-between p-0">
+          <CardContent className="flex h-full flex-col justify-around gap-1 p-0">
             {isRevenueLoading ? (
               <Skeleton className="h-full w-full" />
             ) : (
-              <div className="flex h-full w-full items-stretch">
-                <div className="flex flex-1 flex-col justify-between py-0.5">
-                  <div className="flex items-center gap-1 text-xs text-emerald-500">
+              <>
+                <div className="flex min-w-0 items-center justify-between gap-1">
+                  <div className="flex shrink-0 items-center gap-1 text-xs text-emerald-500">
                     <CreditCard className="h-3.5 w-3.5" />
                     <span>ชำระเอง</span>
                   </div>
-                  <div className="mt-2 flex flex-col items-end gap-0.5">
-                    <span className="text-2xl font-bold tabular-nums">
-                      {Math.round(revenueData?.selfPayAmount ?? 0).toLocaleString()}
-                    </span>
-                    <span className="text-xs text-muted-foreground">บาท</span>
+                  <div className="flex min-w-0 items-baseline gap-1">
+                    <AutoCompactNumber
+                      value={Math.round(revenueData?.selfPayAmount ?? 0)}
+                      className="text-sm font-bold tabular-nums lg:text-lg xl:text-xl"
+                    />
+                    <span className="shrink-0 text-xs text-muted-foreground">บาท</span>
                   </div>
                 </div>
-                <div className="mx-3 w-px bg-border" />
-                <div className="flex flex-1 flex-col justify-between py-0.5">
-                  <div className="flex items-center gap-1 text-xs text-orange-500">
+                <div className="h-px bg-border" />
+                <div className="flex min-w-0 items-center justify-between gap-1">
+                  <div className="flex shrink-0 items-center gap-1 text-xs text-orange-500">
                     <Landmark className="h-3.5 w-3.5" />
                     <span>ลูกหนี้</span>
                   </div>
-                  <div className="mt-2 flex flex-col items-end gap-0.5">
-                    <span className="text-2xl font-bold tabular-nums">
-                      {Math.round(revenueData?.receivableAmount ?? 0).toLocaleString()}
-                    </span>
-                    <span className="text-xs text-muted-foreground">บาท</span>
+                  <div className="flex min-w-0 items-baseline gap-1">
+                    <AutoCompactNumber
+                      value={Math.round(revenueData?.receivableAmount ?? 0)}
+                      className="text-sm font-bold tabular-nums lg:text-lg xl:text-xl"
+                    />
+                    <span className="shrink-0 text-xs text-muted-foreground">บาท</span>
                   </div>
                 </div>
-              </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -485,12 +540,12 @@ export default function Overview() {
             {isBedStatsLoading ? (
               <Skeleton className="h-8 w-full" />
             ) : (
-              <div className="mt-2 flex flex-col items-end gap-0.5">
-                <p className="text-2xl font-bold tabular-nums">
+              <div className="mt-2 flex flex-col items-center gap-0.5">
+                <p className="text-lg font-bold tabular-nums sm:text-xl lg:text-2xl">
                   {(bedStats?.availableBeds ?? 0).toLocaleString()}
                 </p>
                 <span className="text-xs text-muted-foreground">
-                  จาก {(bedStats?.totalBeds ?? 0).toLocaleString()} เตียง
+                  เตียงในระบบ {(bedStats?.systemBeds ?? 0).toLocaleString()} เตียง
                 </span>
               </div>
             )}
@@ -509,13 +564,15 @@ export default function Overview() {
             {isBedOccupancyLoading ? (
               <Skeleton className="h-8 w-full" />
             ) : (
-              <div className="mt-2 flex flex-col items-end gap-0.5">
-                <p className="text-2xl font-bold tabular-nums">
+              <div className="mt-2 flex flex-col items-center gap-0.5">
+                <p className="text-lg font-bold tabular-nums sm:text-xl lg:text-2xl">
                   {(bedOccupancy?.occupancyRate ?? 0).toFixed(1)}
-                  <span className="text-lg">%</span>
+                  <span className="text-base lg:text-lg">%</span>
                 </p>
-                <span className="text-xs text-muted-foreground" title={`(${bedOccupancy?.admitDays ?? 0} วันนอน × 100) ÷ (${bedOccupancy?.daysInPeriod ?? 0} วัน × ${bedOccupancy?.totalBeds ?? 0} เตียง)`}>
-                  {bedOccupancy?.admitDays ?? 0} วันนอน / {bedOccupancy?.daysInPeriod ?? 0} วัน
+                <span className="text-xs text-muted-foreground text-center leading-relaxed" title={`(${(bedOccupancy?.admitDays ?? 0).toLocaleString()} วันนอน × 100) ÷ (${bedOccupancy?.daysInPeriod ?? 0} วัน × ${bedOccupancy?.totalBeds ?? 0} เตียง)`}>
+                  {(bedOccupancy?.admitDays ?? 0).toLocaleString()} วันนอน{' '}
+                  / {bedOccupancy?.daysInPeriod ?? 0} วัน{' '}
+                  / {(bedOccupancy?.totalBeds ?? 0).toLocaleString()} เตียงตามกรอบ
                 </span>
               </div>
             )}
@@ -524,7 +581,7 @@ export default function Overview() {
 
         {/* AdjRW เดือนนี้ */}
         <Card className="p-3">
-          <CardContent className="flex h-full flex-col justify-between p-0">
+          <CardContent className="flex h-full flex-col p-0">
             <div className="flex items-center gap-1.5">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-500/10">
                 <HeartPulse className="h-4 w-4" />
@@ -532,13 +589,12 @@ export default function Overview() {
               <p className="text-xs text-muted-foreground">AdjRW เดือนนี้</p>
             </div>
             {isAdjRwLoading ? (
-              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full mt-2" />
             ) : (
-              <div className="mt-2 flex flex-col items-end gap-0.5">
-                <p className="text-2xl font-bold tabular-nums">
-                  {(adjRwData?.adjRwTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              <div className="flex flex-1 items-center justify-center">
+                <p className="text-lg font-bold tabular-nums sm:text-xl lg:text-2xl">
+                  {(adjRwData?.adjRwTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                 </p>
-                <span className="text-xs text-muted-foreground">RW สะสม</span>
               </div>
             )}
           </CardContent>
@@ -637,14 +693,14 @@ export default function Overview() {
           </CardContent>
         </Card>
 
-        {/* Top Doctors This Month (3/12) */}
+        {/* Today's OPD visits by clinic (3/12) */}
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-lg">TOP 10 Doctor</CardTitle>
-            <CardDescription>เรียงตามจำนวนผู้ป่วยเดือนนี้</CardDescription>
+            <CardTitle className="text-lg">ผู้ป่วยมารับบริการเดือนนี้</CardTitle>
+            <CardDescription>เรียงตามจำนวนผู้รับบริการ (ตามที่ส่งตรวจ)</CardDescription>
           </CardHeader>
           <CardContent>
-            {isDoctorsLoading ? (
+            {isClinicsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3">
@@ -654,40 +710,37 @@ export default function Overview() {
                   </div>
                 ))}
               </div>
-            ) : topDoctors && topDoctors.length > 0 ? (
+            ) : todayClinics && todayClinics.length > 0 ? (
               <>
                 <div className="space-y-3">
-                  {topDoctors.slice(doctorsPage * 5, (doctorsPage + 1) * 5).map((doc, index) => (
-                    <div
-                      key={doc.doctorCode}
-                      className="flex items-center gap-3"
-                    >
+                  {todayClinics.slice(clinicsPage * 5, (clinicsPage + 1) * 5).map((clinic, index) => (
+                    <div key={clinic.clinicName} className="flex items-center gap-3">
                       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                        {doctorsPage * 5 + index + 1}
+                        {clinicsPage * 5 + index + 1}
                       </div>
                       <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                        {doc.doctorName}
+                        {clinic.clinicName}
                       </span>
                       <span className="shrink-0 text-sm font-semibold text-muted-foreground">
-                        {doc.patientCount.toLocaleString()}
+                        {clinic.visitCount.toLocaleString()}
                       </span>
                     </div>
                   ))}
                 </div>
-                {topDoctors.length > 5 && (
+                {todayClinics.length > 5 && (
                   <div className="flex items-center justify-between pt-3 text-sm text-muted-foreground">
-                    <span>หน้า {doctorsPage + 1} / {Math.ceil(Math.min(topDoctors.length, 10) / 5)}</span>
+                    <span>หน้า {clinicsPage + 1} / {Math.ceil(todayClinics.length / 5)}</span>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => setDoctorsPage((p) => p - 1)}
-                        disabled={doctorsPage === 0}
+                        onClick={() => setClinicsPage((p: number) => p - 1)}
+                        disabled={clinicsPage === 0}
                         className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => setDoctorsPage((p) => p + 1)}
-                        disabled={doctorsPage >= Math.ceil(Math.min(topDoctors.length, 10) / 5) - 1}
+                        onClick={() => setClinicsPage((p: number) => p + 1)}
+                        disabled={clinicsPage >= Math.ceil(todayClinics.length / 5) - 1}
                         className="flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -698,7 +751,7 @@ export default function Overview() {
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                ไม่มีกิจกรรมของแพทย์ในเดือนนี้
+                ไม่มีข้อมูลการรับบริการวันนี้
               </p>
             )}
           </CardContent>

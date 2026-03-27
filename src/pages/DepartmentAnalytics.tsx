@@ -3,6 +3,7 @@
 // =============================================================================
 
 import { useState, useCallback } from 'react'
+import { usePersistentDateRange } from '@/hooks/usePersistentDateRange'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
@@ -10,7 +11,6 @@ import {
   getDoctorWorkload,
   getDepartmentDailyTrend,
 } from '@/services/kpiService'
-import { getDateRange } from '@/utils/dateUtils'
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
 import { DepartmentChart } from '@/components/charts/DepartmentChart'
 import { DoctorTable } from '@/components/dashboard/DoctorTable'
@@ -25,9 +25,8 @@ export default function DepartmentAnalytics() {
   // ---------------------------------------------------------------------------
   // Date range state
   // ---------------------------------------------------------------------------
-  const defaultRange = getDateRange(30)
-  const [startDate, setStartDate] = useState(defaultRange.startDate)
-  const [endDate, setEndDate] = useState(defaultRange.endDate)
+  // Date range state — persisted to localStorage
+  const { startDate, endDate, setRange } = usePersistentDateRange('department-analytics', 30)
 
   // ---------------------------------------------------------------------------
   // Selected department drill-down state
@@ -101,12 +100,11 @@ export default function DepartmentAnalytics() {
   // Handlers
   // ---------------------------------------------------------------------------
   const handleRangeChange = useCallback((start: string, end: string) => {
-    setStartDate(start)
-    setEndDate(end)
+    setRange(start, end)
     // Clear drill-down when date range changes
     setSelectedDepartment(null)
     setSelectedDepartmentName('')
-  }, [])
+  }, [setRange])
 
   const handleDepartmentClick = useCallback(
     (depcode: string) => {

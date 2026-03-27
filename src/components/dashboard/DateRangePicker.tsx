@@ -74,7 +74,7 @@ export function DateRangePicker({
               type="button"
               disabled={isLoading}
               onClick={() => handlePresetClick(preset.days)}
-              className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${
+              className={`inline-flex cursor-pointer items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${
                 activePreset === preset.days
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'bg-muted hover:bg-muted/80 text-foreground'

@@ -34,16 +34,28 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ToothIcon } from '@/components/icons/ToothIcon'
-import { DepartmentPageTemplate } from '@/components/dashboard/DepartmentPageTemplate'
 import { EmptyState } from '@/components/dashboard/EmptyState'
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
 import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
-import { getDentistrySummary, getDoctorPerformance, getDentService } from '@/services/kpiService'
+import {
+  getDentistrySummary,
+  getDoctorPerformance,
+  getDentService,
+  getDentalAppointmentStatus,
+  getDentalOutServiceCount,
+  getDentalExpenseByPaymentType,
+} from '@/services/DentalService'
 import { getDateRange, formatDate, formatDateTime } from '@/utils/dateUtils'
 import { cn } from '@/lib/utils'
-import type { DentistrySummary, DentistryDoctorPerformance, DentistryServiceTypeCount } from '@/types'
+import type {
+  DentistrySummary,
+  DentistryDoctorPerformance,
+  DentistryServiceTypeCount,
+  DentalAppointmentStatus,
+  DentalExpenseByPaymentType,
+} from '@/types'
 
 export default function Dentistry() {
   const { connectionConfig, session } = useBmsSessionContext()
@@ -55,6 +67,8 @@ export default function Dentistry() {
   const barChartContainerRef = useRef<HTMLDivElement>(null)
   const donutChartContainerRef = useRef<HTMLDivElement>(null)
   const dentalServiceContainerRef = useRef<HTMLDivElement>(null)
+  const topProceduresContainerRef = useRef<HTMLDivElement>(null)
+  const paymentExpenseContainerRef = useRef<HTMLDivElement>(null)
 
   // Date range state - default to today
   const defaultRange = useMemo(() => getDateRange(0), [])
@@ -106,6 +120,47 @@ export default function Dentistry() {
     enabled: isConnected,
   })
 
+  const dentalAppointmentStatusFn = useCallback(
+    () => getDentalAppointmentStatus(connectionConfig!, startDate, endDate),
+    [connectionConfig, startDate, endDate],
+  )
+
+  const {
+    data: appointmentStatus,
+    execute: executeAppointmentStatus,
+  } = useQuery<DentalAppointmentStatus[]>({
+    queryFn: dentalAppointmentStatusFn,
+    enabled: isConnected,
+  })
+
+  const dentalOutServiceFn = useCallback(
+    () => getDentalOutServiceCount(connectionConfig!, startDate, endDate),
+    [connectionConfig, startDate, endDate],
+  )
+
+  const {
+    data: outServiceCount,
+    execute: executeOutServiceCount,
+  } = useQuery<number>({
+    queryFn: dentalOutServiceFn,
+    enabled: isConnected,
+  })
+
+  const dentalExpenseByPaymentFn = useCallback(
+    () => getDentalExpenseByPaymentType(connectionConfig!, startDate, endDate),
+    [connectionConfig, startDate, endDate],
+  )
+
+  const {
+    data: expenseByPayment,
+    isLoading: isExpenseByPaymentLoading,
+    isError: isExpenseByPaymentError,
+    execute: executeExpenseByPayment,
+  } = useQuery<DentalExpenseByPaymentType[]>({
+    queryFn: dentalExpenseByPaymentFn,
+    enabled: isConnected,
+  })
+
   const handleRangeChange = useCallback((newStart: string, newEnd: string) => {
     setStartDate(newStart)
     setEndDate(newEnd)
@@ -115,13 +170,27 @@ export default function Dentistry() {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     try {
-      await Promise.all([execute(), executeDoctorPerf(), executeDentService()])
+      await Promise.all([
+        execute(),
+        executeDoctorPerf(),
+        executeDentService(),
+        executeAppointmentStatus(),
+        executeOutServiceCount(),
+        executeExpenseByPayment(),
+      ])
       setLastUpdated(new Date())
     } finally {
       // Small delay so the user sees the spinner
       setTimeout(() => setIsRefreshing(false), 600)
     }
-  }, [execute, executeDoctorPerf, executeDentService])
+  }, [
+    execute,
+    executeDoctorPerf,
+    executeDentService,
+    executeAppointmentStatus,
+    executeOutServiceCount,
+    executeExpenseByPayment,
+  ])
 
   // ---------------------------------------------------------------------------
   // Pagination logic
@@ -138,6 +207,50 @@ export default function Dentistry() {
   const handleNextPage = useCallback(() => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1))
   }, [totalPages])
+
+  // Mask patient name for privacy in detail table:
+  // - keep title/prefix visible
+  // - given name: replace last 3 chars with "xxx"
+  // - surname: keep first 3 chars, mask the rest with "xxx"
+  const maskPatientName = useCallback((fullName: string): string => {
+    const name = fullName?.trim()
+    if (!name) return 'ไม่ระบุ'
+
+    const parts = name.split(/\s+/).filter(Boolean)
+    if (parts.length === 0) return 'ไม่ระบุ'
+
+    const knownPrefixes = new Set([
+      'นาย',
+      'นาง',
+      'นางสาว',
+      'น.ส.',
+      'นส.',
+      'ด.ช.',
+      'ด.ญ.',
+      'เด็กชาย',
+      'เด็กหญิง',
+      'Mr.',
+      'Mrs.',
+      'Ms.',
+      'Miss',
+      'Dr.',
+    ])
+
+    const hasPrefix = parts.length >= 2 && knownPrefixes.has(parts[0])
+    const prefix = hasPrefix ? parts[0] : ''
+    const givenName = hasPrefix ? parts[1] : parts[0]
+    const surname = hasPrefix
+      ? (parts.length > 2 ? parts[parts.length - 1] : '')
+      : (parts.length > 1 ? parts[parts.length - 1] : '')
+
+    const maskedGiven = givenName.length > 3
+      ? `${givenName.slice(0, -3)}xxx`
+      : `${givenName.slice(0, -1)}x`
+    if (!surname) return prefix ? `${prefix} ${maskedGiven}` : maskedGiven
+
+    const maskedSurname = `${surname.slice(0, 3)}xxx`
+    return prefix ? `${prefix} ${maskedGiven} ${maskedSurname}` : `${maskedGiven} ${maskedSurname}`
+  }, [])
 
   // ---------------------------------------------------------------------------
   // Chart data transformation
@@ -176,13 +289,53 @@ export default function Dentistry() {
     value: item.totalCount,
   }))
 
+  // Appointment status doughnut chart data
+  const appointmentStatusColors: Record<string, string> = {
+    'ยังไม่มา': 'hsl(var(--chart-4))',
+    'มาตามนัด': 'hsl(var(--chart-2))',
+    'ยกเลิก': 'hsl(var(--chart-3))',
+    'เลื่อนนัด': 'hsl(var(--chart-5))',
+    'ไม่มาตามนัด': 'hsl(var(--chart-1))',
+  }
+  const appointmentStatusChartData = (appointmentStatus ?? []).map((item) => ({
+    name: item.statusName,
+    value: item.count,
+    fill: appointmentStatusColors[item.statusName] ?? 'hsl(var(--chart-1) / 0.6)',
+  }))
+  const totalAppointmentsInRange = appointmentStatusChartData.reduce((sum, item) => sum + item.value, 0)
+  const attendedAppointmentCount =
+    (appointmentStatus ?? []).find((item) => item.statusName === 'มารับบริการแล้ว' || item.statusName === 'มาตามนัด')?.count ?? 0
+  const noShowAppointmentCount =
+    (appointmentStatus ?? []).find((item) => item.statusName === 'ไม่มาตามนัด')?.count ?? 0
+
+  const paymentExpenseChartData = (expenseByPayment ?? []).map((item) => ({
+    name: item.paymentType,
+    value: item.totalAmount,
+  }))
+  const totalPaymentExpense = paymentExpenseChartData.reduce((sum, item) => sum + item.value, 0)
+
+  // Top 10 หัตถการที่ทำบ่อย — aggregated client-side from cases
+  const topProceduresChartData = useMemo(() => {
+    const countMap = new Map<string, number>()
+    for (const c of allCases) {
+      const key = c.tmName?.trim()
+      if (!key) continue
+      countMap.set(key, (countMap.get(key) ?? 0) + 1)
+    }
+    return Array.from(countMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+  }, [allCases])
+
   // Mini stat cards definition
   const miniStats = useMemo(
     () => [
       {
-        label: 'จำนวนหัตถการทั้งหมด',
+        label: 'จำนวนหัตถการ',
         value: dentistry?.totalCases,
         unit: 'รายการ',
+        description: 'นับจำนวนหัตถการทั้งหมด',
         icon: <ToothIcon className="h-4 w-4" />,
       },
       {
@@ -209,8 +362,8 @@ export default function Dentistry() {
       return (
         <div className="space-y-6">
           {/* Mini stat cards Skeleton */}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
               <Card key={i} className="p-3">
                 <CardContent className="flex flex-col items-start gap-1.5 p-0">
                   <Skeleton className="h-7 w-7 rounded-full" />
@@ -241,6 +394,26 @@ export default function Dentistry() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Appointment Status Skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-5 w-56" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+
+          {/* Top Procedures Skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-5 w-64" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-72 w-full" />
+            </CardContent>
+          </Card>
 
           {/* Table Skeleton */}
           <Card>
@@ -318,29 +491,145 @@ export default function Dentistry() {
 
     return (
       <div className="space-y-6">
-        {/* Mini stat cards — All 3 in one row */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          {miniStats.map((stat) => (
-            <Card key={stat.label} className="p-3">
-              <CardContent className="flex flex-col gap-2 p-0">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    {stat.icon}
+        {/* KPI row */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-12">
+          {miniStats.map((stat) => {
+            const isCompactPatientCard = stat.label === 'ผู้ป่วยนอก' || stat.label === 'ผู้ป่วยใน'
+
+            return (
+              <Card
+                key={stat.label}
+                className={cn(isCompactPatientCard ? 'p-2.5 xl:col-span-2' : 'p-3 xl:col-span-3')}
+              >
+                <CardContent className="flex flex-col gap-2 p-0">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      {stat.icon}
+                    </div>
+                    <p className={cn('text-black/90 font-semibold', isCompactPatientCard ? 'text-xs' : 'text-sm')}>
+                      {stat.label}
+                    </p>
                   </div>
-                  <p className="text-sm text-black/90 font-semibold">{stat.label}</p>
+                  <p className={cn('font-bold text-black', isCompactPatientCard ? 'text-lg' : 'text-xl')}>
+                    {stat.value?.toLocaleString() ?? '0'} {stat.unit}
+                  </p>
+                  {stat.description && <p className="text-xs text-muted-foreground">{stat.description}</p>}
+                </CardContent>
+              </Card>
+            )
+          })}
+          <Card className="p-3 xl:col-span-3">
+            <CardContent className="flex flex-col gap-2 p-0">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <CalendarDays className="h-4 w-4" />
                 </div>
-                <p className="text-xl font-bold text-black">
-                  {stat.value?.toLocaleString() ?? '0'} {stat.unit}
+                <p className="text-sm text-black/90 font-semibold">นัดหมาย</p>
+              </div>
+              <p className="text-base font-semibold text-black">
+                ทั้งหมด {totalAppointmentsInRange.toLocaleString()} นัด
+              </p>
+              <p className="text-base font-semibold text-black">
+                มารับบริการ {attendedAppointmentCount.toLocaleString()} ไม่มา {noShowAppointmentCount.toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="p-3 xl:col-span-2">
+            <CardContent className="flex flex-col gap-2 p-0">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <ToothIcon className="h-4 w-4" />
+                </div>
+                <p className="text-sm text-black/90 font-semibold leading-tight">
+                  ตรวจสุขภาพฟัน
+                  <br />
+                  นอกสถานบริการ
                 </p>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+              <p className="text-xl font-bold text-black">{(outServiceCount ?? 0).toLocaleString()} ราย</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Charts row: Dental service, Visit type, and Insurance in one row */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {/* Dental care service summary */}
-          <Card ref={dentalServiceContainerRef}>
+        {/* Analytics row 1 */}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 xl:auto-rows-fr">
+          {/* Top 10 หัตถการที่ทำบ่อย (left) */}
+          <Card ref={topProceduresContainerRef} className="xl:col-span-8 xl:row-span-2">
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle className="text-lg">10 อันดับหัตถการที่ทำบ่อย</CardTitle>
+                <CardDescription>
+                  {topProceduresChartData.length > 0
+                    ? `รวม ${topProceduresChartData.reduce((s, d) => s + d.count, 0).toLocaleString()} ครั้ง จากช่วงวันที่เลือก`
+                    : 'ไม่มีข้อมูล'}
+                </CardDescription>
+              </div>
+              {topProceduresChartData.length > 0 && (
+                <ChartExportMenu
+                  containerRef={topProceduresContainerRef}
+                  data={topProceduresChartData}
+                  title="10 อันดับหัตถการที่ทำบ่อย"
+                />
+              )}
+            </CardHeader>
+            <CardContent>
+              {topProceduresChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={Math.max(topProceduresChartData.length * 42 + 20, 560)}>
+                  <BarChart
+                    data={topProceduresChartData}
+                    layout="vertical"
+                    margin={{ top: 0, right: 48, left: 8, bottom: 0 }}
+                    barCategoryGap="25%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                    <XAxis
+                      type="number"
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={220}
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      labelFormatter={(label) => `หัตถการ: ${label}`}
+                      formatter={(value) => [`${value} ครั้ง`, 'จำนวน']}
+                      contentStyle={{
+                        borderRadius: '8px',
+                        border: '1px solid hsl(var(--border))',
+                        background: 'hsl(var(--card))',
+                        fontSize: '12px',
+                      }}
+                      cursor={false}
+                    />
+                    <Bar
+                      dataKey="count"
+                      fill="hsl(var(--chart-2) / 0.75)"
+                      radius={[0, 4, 4, 0]}
+                      maxBarSize={28}
+                      isAnimationActive={false}
+                      label={{ position: 'right', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">ไม่มีข้อมูลในช่วงเวลาที่เลือก</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Dental care service summary (right top) */}
+          <Card ref={dentalServiceContainerRef} className="xl:col-span-4">
             <CardHeader className="flex flex-row items-start justify-between space-y-0">
               <div>
                 <CardTitle className="text-lg">ตรวจสุขภาพฟันแยกตามกลุ่มอายุ</CardTitle>
@@ -384,7 +673,7 @@ export default function Dentistry() {
                           nameKey="name"
                           strokeWidth={0}
                         >
-                          {dentalServiceChartData.map((entry, index) => (
+                          {dentalServiceChartData.map((_entry, index) => (
                             <Cell key={`cell-${index}`} fill={insuranceColors[index % insuranceColors.length]} />
                           ))}
                         </Pie>
@@ -429,80 +718,8 @@ export default function Dentistry() {
             </CardContent>
           </Card>
 
-          {/* Visit Type Distribution Chart */}
-          <Card ref={barChartContainerRef}>
-            <CardHeader className="flex flex-row items-start justify-between space-y-0">
-              <div>
-                <CardTitle className="text-lg">จำนวนหัตถการแยกตามประเภทการรับบริการ</CardTitle>
-                <CardDescription>
-                  {chartData.length > 0
-                    ? `รวม ${chartData.reduce((sum, d) => sum + d.cases, 0).toLocaleString()} ราย`
-                    : 'ไม่มีข้อมูล'}
-                </CardDescription>
-              </div>
-              {chartData.length > 0 && (
-                <ChartExportMenu containerRef={barChartContainerRef} data={chartData} title="หัตถการแยกตามประเภท" />
-              )}
-            </CardHeader>
-            <CardContent>
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 5, right: 10, left: 10, bottom: 48 }}
-                    barCategoryGap="20%"
-                  >
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
-                    <XAxis
-                      dataKey="visitType"
-                      type="category"
-                      angle={-35}
-                      textAnchor="end"
-                      interval={0}
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={false}
-                      padding={{ left: 20, right: 20 }}
-                      height={80}
-                    />
-                    <YAxis
-                      type="number"
-                      allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
-                      width={0}
-                    />
-                    <Tooltip
-                      labelFormatter={(label) => `ประเภท: ${label}`}
-                      formatter={(value) => [`${value} เคส`, 'จำนวน']}
-                      contentStyle={{
-                        borderRadius: '8px',
-                        border: '1px solid hsl(var(--border))',
-                        background: 'hsl(var(--card))',
-                        fontSize: '12px',
-                      }}
-                      cursor={false}
-                    />
-                    <Bar
-                      dataKey="cases"
-                      fill="hsl(var(--chart-1) / 0.75)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={40}
-                      isAnimationActive={false}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">ไม่มีข้อมูลในช่วงเวลาที่เลือก</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Insurance Distribution Doughnut Chart */}
-          <Card ref={donutChartContainerRef}>
+          <Card ref={donutChartContainerRef} className="xl:col-span-4">
             <CardHeader className="flex flex-row items-start justify-between space-y-0">
               <div>
                 <CardTitle className="text-lg">ผู้ป่วยแยกตามสิทธิการรักษา</CardTitle>
@@ -663,6 +880,177 @@ export default function Dentistry() {
           </CardContent>
         </Card>
 
+        {/* Payment + Visit Type row */}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {/* Expense by Payment Type Doughnut Chart */}
+          <Card ref={paymentExpenseContainerRef}>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle className="text-lg">ค่าใช้จ่ายแยกตามประเภทการชำระเงิน</CardTitle>
+              <CardDescription>
+                {paymentExpenseChartData.length > 0
+                  ? `รวม ${totalPaymentExpense.toLocaleString()} บาท`
+                  : 'ไม่มีข้อมูล'}
+              </CardDescription>
+            </div>
+            {paymentExpenseChartData.length > 0 && (
+              <ChartExportMenu
+                containerRef={paymentExpenseContainerRef}
+                data={paymentExpenseChartData}
+                title="ค่าใช้จ่ายแยกตามประเภทการชำระเงิน"
+              />
+            )}
+          </CardHeader>
+          <CardContent>
+            {isExpenseByPaymentLoading ? (
+              <div className="flex h-[260px] items-center justify-center">
+                <Skeleton className="h-[220px] w-full" />
+              </div>
+            ) : isExpenseByPaymentError ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">ไม่สามารถโหลดข้อมูลค่าใช้จ่ายได้</p>
+              </div>
+            ) : paymentExpenseChartData.length > 0 ? (
+              <div className="flex items-center gap-4">
+                <div className="basis-3/5 min-w-0">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart>
+                      <Pie
+                        data={paymentExpenseChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                        nameKey="name"
+                        strokeWidth={0}
+                      >
+                        {paymentExpenseChartData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={insuranceColors[index % insuranceColors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload || payload.length === 0) return null
+                          const item = payload[0]
+                          const pct = totalPaymentExpense > 0
+                            ? Math.round((Number(item.value) / totalPaymentExpense) * 100)
+                            : 0
+                          return (
+                            <div className="bg-white dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-700 p-2 text-xs shadow-md">
+                              <div className="font-medium text-slate-900 dark:text-slate-100">{item.name}</div>
+                              <div className="text-slate-500 dark:text-slate-300">ยอด: {Number(item.value).toLocaleString()} บาท</div>
+                              <div className="text-slate-500 dark:text-slate-300">สัดส่วน: {pct}%</div>
+                            </div>
+                          )
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="basis-2/5 min-w-0">
+                  <div className="flex flex-col gap-2">
+                    {paymentExpenseChartData.map((item, index) => {
+                      const pct = totalPaymentExpense > 0 ? Math.round((item.value / totalPaymentExpense) * 100) : 0
+                      return (
+                        <div key={item.name} className="flex items-center gap-2 text-sm">
+                          <span
+                            className="inline-block h-3 w-3 shrink-0 rounded-sm"
+                            style={{ backgroundColor: insuranceColors[index % insuranceColors.length] }}
+                          />
+                          <span className="flex-1 truncate text-muted-foreground">{item.name}</span>
+                          <span className="font-semibold tabular-nums shrink-0">{item.value.toLocaleString()}</span>
+                          <span className="text-xs text-muted-foreground w-9 text-right shrink-0">{pct}%</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8">
+                <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">ไม่มีข้อมูลในช่วงเวลาที่เลือก</p>
+              </div>
+            )}
+          </CardContent>
+          </Card>
+
+          {/* Visit Type Distribution Chart */}
+          <Card ref={barChartContainerRef}>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle className="text-lg">จำนวนหัตถการแยกตามประเภทการรับบริการ</CardTitle>
+                <CardDescription>
+                  {chartData.length > 0
+                    ? `รวม ${chartData.reduce((sum, d) => sum + d.cases, 0).toLocaleString()} ราย`
+                    : 'ไม่มีข้อมูล'}
+                </CardDescription>
+              </div>
+              {chartData.length > 0 && (
+                <ChartExportMenu containerRef={barChartContainerRef} data={chartData} title="หัตถการแยกตามประเภท" />
+              )}
+            </CardHeader>
+            <CardContent>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 5, right: 10, left: 10, bottom: 48 }}
+                    barCategoryGap="20%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                    <XAxis
+                      dataKey="visitType"
+                      type="category"
+                      angle={-35}
+                      textAnchor="end"
+                      interval={0}
+                      tick={{ fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      padding={{ left: 20, right: 20 }}
+                      height={80}
+                    />
+                    <YAxis
+                      type="number"
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      width={0}
+                    />
+                    <Tooltip
+                      labelFormatter={(label) => `ประเภท: ${label}`}
+                      formatter={(value) => [`${value} เคส`, 'จำนวน']}
+                      contentStyle={{
+                        borderRadius: '8px',
+                        border: '1px solid hsl(var(--border))',
+                        background: 'hsl(var(--card))',
+                        fontSize: '12px',
+                      }}
+                      cursor={false}
+                    />
+                    <Bar
+                      dataKey="cases"
+                      fill="hsl(var(--chart-1) / 0.75)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
+                      isAnimationActive={false}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">ไม่มีข้อมูลในช่วงเวลาที่เลือก</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Patient Details Table */}
         <Card>
           <CardHeader>
@@ -720,7 +1108,7 @@ export default function Dentistry() {
                               <Badge variant="outline">{caseItem.hn}</Badge>
                             </TableCell>
                             <TableCell className="text-xs">
-                              {caseItem.patientName || 'ไม่ระบุ'}
+                              {maskPatientName(caseItem.patientName || '')}
                             </TableCell>
                             <TableCell className="text-xs">{caseItem.tmName || '-'}</TableCell>
                             <TableCell className="text-xs">
@@ -819,19 +1207,13 @@ export default function Dentistry() {
         </Button>
       </div>
 
-      {/* ------------------------------------------------------------------- */}
-      {/* 2. Date Range Picker                                                 */}
-      {/* ------------------------------------------------------------------- */}
-      <DateRangePicker 
-        startDate={startDate} 
-        endDate={endDate} 
+      <DateRangePicker
+        startDate={startDate}
+        endDate={endDate}
         onRangeChange={handleRangeChange}
         isLoading={isLoading}
       />
 
-      {/* ------------------------------------------------------------------- */}
-      {/* 3. Content — Changes based on state                                  */}
-      {/* ------------------------------------------------------------------- */}
       {renderContent()}
     </div>
   )

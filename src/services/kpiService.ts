@@ -9,11 +9,6 @@ import type {
   ConnectionConfig,
   DatabaseType,
   DepartmentWorkload,
-  DentistryCase,
-  DentistryDoctorPerformance,
-  DentistryInsuranceDistribution,
-  DentistryVisitTypeDistribution,
-  DentistrySummary,
   DoctorWorkload,
   ErVisitDetail,
   HourlyDistribution,
@@ -161,7 +156,7 @@ export async function getTodayDischargedCount(
   config: ConnectionConfig,
   dbType: DatabaseType,
 ): Promise<number> {
-  const sql = `SELECT COUNT(*) as total FROM ipt WHERE dchdate = ${queryBuilder.currentDate(dbType)}`;
+  const sql = `SELECT COUNT(*) as total FROM ipt WHERE confirm_discharge = 'Y' AND dchdate = ${queryBuilder.currentDate(dbType)}`;
   const response = await executeSqlViaApi(sql, config);
   const rows = parseQueryResponse(response, (row) => Number(row['total'] ?? 0));
   return rows[0] ?? 0;
@@ -273,7 +268,7 @@ export async function getIpdWardDistribution(
       yesterdayPatientCount: yesterdayTotalCount,
       percentageChange: percentageChange,
     }));
-  } catch (error) {
+  } catch {
     // Fallback: keep the ward code, no bed count.
     const fallbackSql =
       `SELECT ward as wardcode, COALESCE(ward, 'ไม่ระบุ') as ward_name, COUNT(DISTINCT an) as patient_count ` +
@@ -310,6 +305,8 @@ export interface AppointmentStats {
   attended: number;
   notAttended: number;
   attendanceRate: number;
+  lastWeekSameDayTotal: number;
+  changePercent: number; // positive = increase, negative = decrease
 }
 
 /**
@@ -317,18 +314,26 @@ export interface AppointmentStats {
  */
 export async function getAppointmentStats(
   config: ConnectionConfig,
+  dbType: DatabaseType,
 ): Promise<AppointmentStats> {
-  const [totalResp, attendedResp, notAttendedResp] = await Promise.all([
+  const today = queryBuilder.currentDate(dbType);
+  const lastWeekSameDay = queryBuilder.dateSubtract(dbType, 7);
+
+  const [totalResp, attendedResp, notAttendedResp, lastWeekResp] = await Promise.all([
     executeSqlViaApi(
-      `SELECT count(distinct hn) as total FROM oapp WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = current_date`,
+      `SELECT count(distinct hn) as total FROM oapp WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = ${today}`,
       config,
     ),
     executeSqlViaApi(
-      `SELECT count(distinct ovst.hn) as attended FROM oapp, ovst WHERE oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate AND (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = current_date`,
+      `SELECT count(distinct ovst.hn) as attended FROM oapp, ovst WHERE oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate AND (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = ${today}`,
       config,
     ),
     executeSqlViaApi(
-      `SELECT count(distinct oapp.hn) as not_attended FROM oapp LEFT JOIN ovst ON oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = current_date AND ovst.hn IS NULL`,
+      `SELECT count(distinct oapp.hn) as not_attended FROM oapp LEFT JOIN ovst ON oapp.hn = ovst.hn AND ovst.vstdate = oapp.nextdate WHERE (oapp_status_id IS NULL OR oapp_status_id < 4) AND nextdate = ${today} AND ovst.hn IS NULL`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT count(distinct hn) as total FROM oapp WHERE nextdate = ${lastWeekSameDay}`,
       config,
     ),
   ]);
@@ -336,9 +341,13 @@ export async function getAppointmentStats(
   const total = parseQueryResponse(totalResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
   const attended = parseQueryResponse(attendedResp, (row) => Number(row['attended'] ?? 0))[0] ?? 0;
   const notAttended = parseQueryResponse(notAttendedResp, (row) => Number(row['not_attended'] ?? 0))[0] ?? 0;
+  const lastWeekSameDayTotal = parseQueryResponse(lastWeekResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
   const attendanceRate = total > 0 ? Math.round((attended / total) * 100) : 0;
+  const changePercent = lastWeekSameDayTotal > 0
+    ? Math.round(((total - lastWeekSameDayTotal) / lastWeekSameDayTotal) * 100)
+    : 0;
 
-  return { totalAppointments: total, attended, notAttended, attendanceRate };
+  return { totalAppointments: total, attended, notAttended, attendanceRate, lastWeekSameDayTotal, changePercent };
 }
 
 /**
@@ -865,6 +874,38 @@ export async function getTopDoctorsThisMonth(
 }
 
 // ---------------------------------------------------------------------------
+// Today's OPD visits by clinic/specialty
+// ---------------------------------------------------------------------------
+
+export interface ClinicVisitCount {
+  clinicName: string;
+  visitCount: number;
+}
+
+/**
+ * Count of distinct OPD visits today, grouped by specialty (clinic),
+ * ordered descending by visit count.
+ */
+export async function getTodayVisitsByClinic(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<ClinicVisitCount[]> {
+  const today = queryBuilder.currentDate(dbType);
+  const sql =
+    `SELECT sp.name as spclty_name, count(distinct o.vn) as visit_count ` +
+    `FROM ovst o, spclty sp ` +
+    `WHERE o.spclty = sp.spclty ` +
+    `AND o.vstdate = ${today} ` +
+    `GROUP BY spclty_name ` +
+    `ORDER BY visit_count DESC`;
+  const response = await executeSqlViaApi(sql, config);
+  return parseQueryResponse(response, (row) => ({
+    clinicName: String(row['spclty_name'] ?? 'ไม่ระบุ'),
+    visitCount: Number(row['visit_count'] ?? 0),
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // Trend Summary & Extended Trend KPIs
 // ---------------------------------------------------------------------------
 
@@ -1064,8 +1105,9 @@ export async function getMedicationCostSummary(
  */
 export async function getDeathSummary(
   config: ConnectionConfig,
-  _dbType: DatabaseType,
+  dbType: DatabaseType,
 ): Promise<{ totalDeaths: number; thisYearDeaths: number; thisMonthDeaths: number }> {
+  void dbType; // parameter reserved for future db-aware date formatting
   const currentYear = new Date().getFullYear();
   const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
   const yearStart = `${currentYear}-01-01`;
@@ -1087,8 +1129,8 @@ export async function getDeathSummary(
 }
 
 /**
- * OPD patient count grouped by specialty (spclty) for the current month.
- * Only OPD visits (an IS NULL). Returns all departments ordered by count desc.
+ * Visit count grouped by specialty (spclty) for the current month.
+ * Counts all visits from ovst (OPD + IPD). Returns all departments ordered by count desc.
  */
 export async function getOpdDepartmentThisMonth(
   config: ConnectionConfig,
@@ -1100,8 +1142,7 @@ export async function getOpdDepartmentThisMonth(
     `SELECT s.name as spclty_name, COUNT(DISTINCT ovst.vn) as count_vn ` +
     `FROM ovst ` +
     `INNER JOIN spclty s ON s.spclty = ovst.spclty ` +
-    `WHERE ovst.an IS NULL ` +
-    `AND ${monthExpr} = ${currentMonthExpr} ` +
+    `WHERE ${monthExpr} = ${currentMonthExpr} ` +
     `GROUP BY s.name ` +
     `ORDER BY count_vn DESC`;
   const response = await executeSqlViaApi(sql, config);
@@ -1133,220 +1174,244 @@ export async function getDiagnosisSummary(
 }
 
 // ---------------------------------------------------------------------------
-// Dentistry Department
+// Refer-in / Refer-out stats for today
 // ---------------------------------------------------------------------------
 
-/**
- * Get all dentistry cases with treatment and doctor information.
- * Filtered by date range (o.vstdate).
- */
-export async function getDentistryCases(
-  config: ConnectionConfig,
-  startDate: string,
-  endDate: string,
-): Promise<DentistryCase[]> {
-  const sql =
-    `SELECT
-      d1.vn,
-      d1.an,
-      o.hn,
-      o.vstdate,
-      CONCAT(d2.name, ' ', d1.ttcode) AS tm_name,
-      d3.name AS doctor_name,
-      d4.name AS helper_name,
-      CONCAT(p.pname, p.fname, ' ', p.lname) AS ptname,
-      v.visit_type_name
-    FROM dtmain d1
-      LEFT OUTER JOIN ovst o ON o.vn = d1.vn
-      LEFT OUTER JOIN dttm d2 ON d2.code = d1.tmcode
-      LEFT OUTER JOIN visit_type v ON v.visit_type = o.visit_type
-      LEFT OUTER JOIN doctor d3 ON d3.code = d1.doctor
-      LEFT OUTER JOIN doctor d4 ON d4.code = d1.doctor_helper
-      LEFT OUTER JOIN patient p ON p.hn = o.hn
-    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'
-    ORDER BY d1.vstdate, d1.vn `;
-
-  const response = await executeSqlViaApi(sql, config);
-  return parseQueryResponse(response, (row) => ({
-    hn: String(row['hn'] ?? ''),
-    vn: String(row['vn'] ?? ''),
-    vstdate: String(row['vstdate'] ?? ''),
-    ttcode: String(row['ttcode'] ?? ''),
-    an: String(row['an'] ?? ''),
-    tmName: String(row['tm_name'] ?? ''),
-    doctorName: String(row['doctor_name'] ?? 'ไม่ระบุ'),
-    helperName: String(row['helper_name'] ?? ''),
-    patientName: String(row['ptname'] ?? ''),
-    visitTypeName: String(row['visit_type_name'] ?? ''),
-    pttype: String(row['pttype'] ?? 'ไม่ระบุ'),
-  }));
+export interface ReferStats {
+  referIn: number;
+  referOut: number;
 }
 
-/**
- * Get dentistry cases grouped by visit type for chart visualization.
- * Filtered by date range (o.vstdate).
- */
-export async function getDentistryByVisitType(
+export async function getReferStats(
   config: ConnectionConfig,
-  startDate: string,
-  endDate: string,
-): Promise<DentistryVisitTypeDistribution[]> {
-  const sql =
-    `SELECT
-      COALESCE(v.visit_type_name, 'ไม่ระบุ') AS visit_type_name,
-      COUNT(distinct d1.vn) AS case_count
-    FROM dtmain d1
-      LEFT OUTER JOIN ovst o ON o.vn = d1.vn OR o.an = d1.vn
-      LEFT OUTER JOIN visit_type v ON v.visit_type = o.visit_type
-    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'
-    GROUP BY v.visit_type_name
-    ORDER BY case_count DESC`;
-
-  const response = await executeSqlViaApi(sql, config);
-  return parseQueryResponse(response, (row) => ({
-    visitTypeName: String(row['visit_type_name'] ?? 'ไม่ระบุ'),
-    caseCount: Number(row['case_count'] ?? 0),
-  }));
+): Promise<ReferStats> {
+  const [inResp, outResp] = await Promise.all([
+    executeSqlViaApi(
+      `SELECT count(distinct hn) as total FROM referin WHERE refer_date = current_date`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT count(distinct hn) as total FROM referout WHERE refer_date = current_date`,
+      config,
+    ),
+  ]);
+  const referIn = parseQueryResponse(inResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const referOut = parseQueryResponse(outResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  return { referIn, referOut };
 }
 
-/**
- * Get dentistry cases grouped by insurance type (pttype).
- */
-export async function getDentistryByInsurance(
-  config: ConnectionConfig,
-  startDate: string,
-  endDate: string,
-): Promise<DentistryInsuranceDistribution[]> {
-  const sql =
-    `SELECT
-      COALESCE(gp.pttype_price_group_name, 'ไม่ระบุ') AS insurance_type,
-      COUNT(distinct d1.vn) AS case_count
-    FROM dtmain d1
-      LEFT OUTER JOIN ovst o ON o.vn = d1.vn OR o.an = d1.vn
-      LEFT OUTER JOIN patient p ON p.hn = o.hn
-      LEFT OUTER JOIN pttype pt ON o.pttype = pt.pttype
-      LEFT OUTER JOIN pttype_price_group gp on gp.pttype_price_group_id = pt.pttype_price_group_id
-    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'
-    GROUP BY insurance_type
-    ORDER BY case_count DESC`;
+// ---------------------------------------------------------------------------
+// Revenue stats for today (total, self-pay, receivable)
+// ---------------------------------------------------------------------------
 
-  const response = await executeSqlViaApi(sql, config);
-  return parseQueryResponse(response, (row) => ({
-    insuranceType: String(row['insurance_type'] ?? 'ไม่ระบุ'),
-    patientCount: Number(row['case_count'] ?? 0),
-  }));
+export interface RevenueStats {
+  totalAmount: number;
+  selfPayAmount: number;
+  receivableAmount: number;
 }
 
-/**
- * Get dentistry performance summary grouped by doctor.
- */
-export async function getDoctorPerformance(
+export async function getRevenueStats(
   config: ConnectionConfig,
-  startDate: string,
-  endDate: string,
-): Promise<DentistryDoctorPerformance[]> {
-  const sql =
-    `SELECT 
-      doctor.name AS doctor_name, 
-      COUNT(DISTINCT dtmain.vn) AS c_vn, 
-      COUNT(*) AS c_dtmain, 
-      SUM(COALESCE(opitemrece.sum_price, 0)) AS sum_price 
-    FROM dtmain  
-    LEFT JOIN opitemrece ON opitemrece.hos_guid = dtmain.opi_guid
-    LEFT JOIN doctor ON doctor.code = dtmain.doctor 
-    WHERE doctor.name NOT LIKE '%BMS%' 
-      AND dtmain.vstdate BETWEEN '${startDate}' AND '${endDate}'
-    GROUP BY doctor_name 
-    ORDER BY doctor_name`;
-
-  const response = await executeSqlViaApi(sql, config);
-  return parseQueryResponse(response, (row) => ({
-    doctorName: String(row['doctor_name'] ?? 'ไม่ระบุ'),
-    c_vn: Number(row['c_vn'] ?? 0),
-    c_dtmain: Number(row['c_dtmain'] ?? 0),
-    sum_price: Number(row['sum_price'] ?? 0),
-  }));
+): Promise<RevenueStats> {
+  const [totalResp, selfPayResp, receivableResp] = await Promise.all([
+    executeSqlViaApi(
+      `SELECT sum(coalesce(sum_price,0)) as total FROM opitemrece WHERE vstdate = current_date AND vn <> ''`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT sum(coalesce(sum_price,0)) as total FROM opitemrece WHERE vstdate = current_date AND vn <> '' AND paidst IN('01','03')`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT sum(coalesce(sum_price,0)) as total FROM opitemrece WHERE vstdate = current_date AND vn <> '' AND paidst NOT IN('01','03')`,
+      config,
+    ),
+  ]);
+  const totalAmount = parseQueryResponse(totalResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const selfPayAmount = parseQueryResponse(selfPayResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const receivableAmount = parseQueryResponse(receivableResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  return { totalAmount, selfPayAmount, receivableAmount };
 }
 
-/**
- * Get dentistry service records by care type.
- * Uses DATE(entry_datetime) to filter by date portion only,
- * because the inputs are date strings (start/end date) without time.
- */
-export async function getDentService(
-  config: ConnectionConfig,
-  startDate: string,
-  endDate: string,
-): Promise<DentistryServiceTypeCount[]> {
-  const sql =
-    `SELECT
-      dt.dental_care_type_name,
-      COUNT(*) AS total_count
-    FROM dental_care dc
-    LEFT JOIN dental_care_type dt ON dt.dental_care_type_id = dc.dental_care_type_id
-    WHERE DATE(dc.entry_datetime) BETWEEN '${startDate}' AND '${endDate}'
-    GROUP BY dt.dental_care_type_name
-    ORDER BY total_count DESC`;
+// ---------------------------------------------------------------------------
+// Bed availability stats (today)
+// ---------------------------------------------------------------------------
 
-  const response = await executeSqlViaApi(sql, config);
-  return parseQueryResponse(response, (row) => ({
-    dentalCareTypeName: String(row['dental_care_type_name'] ?? 'ไม่ระบุ'),
-    totalCount: Number(row['total_count'] ?? 0),
-  }));
+export interface BedStats {
+  totalBeds: number;
+  occupiedBeds: number;
+  availableBeds: number;
+  systemBeds: number;
 }
 
-/**
- * Get dentistry summary metrics (visit count, IPD count) from SQL aggregation.
- */
-async function getDentistrySummaryMetrics(
+export async function getBedStats(config: ConnectionConfig): Promise<BedStats> {
+  const [totalResp, occupiedResp, systemBedsResp] = await Promise.all([
+    executeSqlViaApi(
+      `SELECT sum(coalesce(bedcount,0)) as total FROM ward WHERE ward_active='Y'`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT count(distinct i.an) as total ` +
+      `FROM ipt i, ward w ` +
+      `WHERE i.ward = w.ward ` +
+      `AND i.confirm_discharge = 'N' ` +
+      `AND w.ward_active = 'Y' ` +
+      `AND lower(w.name) NOT LIKE '%home%ward%'`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT count(distinct b.bedno) as total ` +
+      `FROM roomno r, bedno b, bed_status_type bt, ward w ` +
+      `WHERE r.roomno = b.roomno ` +
+      `AND b.bed_status_type_id = bt.bed_status_type_id ` +
+      `AND bt.is_available = 'Y' ` +
+      `AND w.ward_active = 'Y' ` +
+      `AND r.name NOT LIKE '%เสริม%' ` +
+      `AND r.name NOT LIKE '%แทรก%' ` +
+      `AND r.name NOT LIKE '%ยกเลิก%' ` +
+      `AND r.name NOT LIKE '%รอรับ%' ` +
+      `AND b.bed_status_type_id = 1 ` +
+      `AND lower(w.name) NOT LIKE '%home%ward%'`,
+      config,
+    ),
+  ]);
+  const totalBeds = parseQueryResponse(totalResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const occupiedBeds = parseQueryResponse(occupiedResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const systemBeds = parseQueryResponse(systemBedsResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  return { totalBeds, occupiedBeds, availableBeds: Math.max(0, systemBeds - occupiedBeds), systemBeds };
+}
+
+// ---------------------------------------------------------------------------
+// Bed occupancy rate for current month
+// ---------------------------------------------------------------------------
+
+export interface BedOccupancyStats {
+  occupancyRate: number;
+  admitDays: number;
+  totalBeds: number;
+  daysInPeriod: number;
+}
+
+export async function getBedOccupancyStats(
   config: ConnectionConfig,
-  startDate: string,
-  endDate: string,
-): Promise<{ totalCases: number; totalVisits: number; totalIPDCases: number }> {
+  dbType: DatabaseType,
+): Promise<BedOccupancyStats> {
+  const firstDay = queryBuilder.firstDayOfMonth(dbType);
+  const today = queryBuilder.currentDate(dbType);
+
+  const [admitDaysResp, totalBedsResp] = await Promise.all([
+    executeSqlViaApi(
+      `SELECT count(*) as total FROM ward_admit_snapshot WHERE snap_date >= ${firstDay} AND snap_date <= ${today}`,
+      config,
+    ),
+    executeSqlViaApi(
+      `SELECT sum(coalesce(bedcount,0)) as total FROM ward WHERE ward_active='Y'`,
+      config,
+    ),
+  ]);
+
+  const admitDays = parseQueryResponse(admitDaysResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  const totalBeds = parseQueryResponse(totalBedsResp, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const daysInPeriod = Math.floor((now.getTime() - firstOfMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  const denominator = daysInPeriod * totalBeds;
+  const occupancyRate = denominator > 0
+    ? Math.round((admitDays * 1000) / denominator) / 10
+    : 0;
+
+  return { occupancyRate, admitDays, totalBeds, daysInPeriod };
+}
+
+// ---------------------------------------------------------------------------
+// AdjRW sum for current month
+// ---------------------------------------------------------------------------
+
+export interface AdjRwStats {
+  adjRwTotal: number;
+}
+
+export async function getAdjRwThisMonth(
+  config: ConnectionConfig,
+  dbType: DatabaseType,
+): Promise<AdjRwStats> {
+  const firstDay = queryBuilder.firstDayOfMonth(dbType);
+  const today = queryBuilder.currentDate(dbType);
+
+  const response = await executeSqlViaApi(
+    `SELECT sum(coalesce(adjrw,0)) as total FROM ipt WHERE dchdate >= ${firstDay} AND dchdate <= ${today}`,
+    config,
+  );
+  const adjRwTotal = parseQueryResponse(response, (row) => Number(row['total'] ?? 0))[0] ?? 0;
+  return { adjRwTotal };
+}
+
+// ---------------------------------------------------------------------------
+// Pttype price group distribution for today
+// ---------------------------------------------------------------------------
+
+export interface PttypeGroupItem {
+  groupName: string;
+  visitCount: number;
+  percent: number;
+}
+
+export async function getPttypeDistribution(
+  config: ConnectionConfig,
+): Promise<PttypeGroupItem[]> {
   const sql =
-    `SELECT
-      COUNT(*) AS total_cases,
-      COUNT(DISTINCT CASE WHEN d1.an IS NULL OR d1.an = '' THEN d1.vn END) AS total_visits,
-      COUNT(CASE WHEN d1.an IS NOT NULL AND d1.an != '' THEN 1 END) AS total_ipd_cases
-    FROM dtmain d1
-      LEFT OUTER JOIN ovst o ON o.vn = d1.vn
-    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'`;
+    `SELECT pttype_price_group_name, count(distinct vn) as visit_count ` +
+    `FROM pttype_price_group p1, pttype p2, ovst ` +
+    `WHERE p1.pttype_price_group_id = p2.pttype_price_group_id ` +
+    `AND p2.pttype = ovst.pttype ` +
+    `AND vstdate = current_date ` +
+    `GROUP BY pttype_price_group_name ` +
+    `ORDER BY visit_count DESC`;
 
   const response = await executeSqlViaApi(sql, config);
   const rows = parseQueryResponse(response, (row) => ({
-    totalCases: Number(row['total_cases'] ?? 0),
-    totalVisits: Number(row['total_visits'] ?? 0),
-    totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
+    groupName: String(row['pttype_price_group_name'] ?? ''),
+    visitCount: Number(row['visit_count'] ?? 0),
   }));
 
-  return rows.length > 0
-    ? rows[0]
-    : { totalCases: 0, totalVisits: 0, totalIPDCases: 0 };
+  const total = rows.reduce((sum, r) => sum + r.visitCount, 0);
+  return rows.map((r) => ({
+    ...r,
+    percent: total > 0 ? Math.round((r.visitCount / total) * 100) : 0,
+  }));
 }
 
-/**
- * Get dentistry department summary for a date range.
- */
-export async function getDentistrySummary(
+// ---------------------------------------------------------------------------
+// IPD discharges this month grouped by pttype price group
+// ---------------------------------------------------------------------------
+
+export async function getThisMonthIPDDischarges(
   config: ConnectionConfig,
-  startDate: string,
-  endDate: string,
-): Promise<DentistrySummary> {
-  const [cases, visitTypeDistribution, insuranceDistribution, metrics, doctorPerformance] = await Promise.all([
-    getDentistryCases(config, startDate, endDate),
-    getDentistryByVisitType(config, startDate, endDate),
-    getDentistryByInsurance(config, startDate, endDate),
-    getDentistrySummaryMetrics(config, startDate, endDate),
-    getDoctorPerformance(config, startDate, endDate),
-  ]);
+  dbType: DatabaseType,
+): Promise<PttypeGroupItem[]> {
+  const firstDay = queryBuilder.firstDayOfMonth(dbType);
+  const today = queryBuilder.currentDate(dbType);
+  const sql =
+    `SELECT pttype_price_group_name, count(distinct an) as discharge_count ` +
+    `FROM pttype_price_group p1, pttype p2, ipt ` +
+    `WHERE p1.pttype_price_group_id = p2.pttype_price_group_id ` +
+    `AND p2.pttype = ipt.pttype ` +
+    `AND dchdate >= ${firstDay} AND dchdate <= ${today} ` +
+    `GROUP BY pttype_price_group_name ` +
+    `ORDER BY discharge_count DESC`;
 
-  return {
-    totalCases: metrics.totalCases,
-    totalVisits: metrics.totalVisits,
-    totalIPDCases: metrics.totalIPDCases,
-    casesByVisitType: visitTypeDistribution,
-    casesByInsurance: insuranceDistribution,
-    cases,
-    doctorPerformance,
-  };
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => ({
+    groupName: String(row['pttype_price_group_name'] ?? ''),
+    visitCount: Number(row['discharge_count'] ?? 0),
+  }));
+
+  const total = rows.reduce((sum, r) => sum + r.visitCount, 0);
+  return rows.map((r) => ({
+    ...r,
+    percent: total > 0 ? Math.round((r.visitCount / total) * 100) : 0,
+  }));
 }
+

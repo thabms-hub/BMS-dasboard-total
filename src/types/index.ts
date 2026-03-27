@@ -285,3 +285,15 @@ export interface DentistrySummary {
   cases: DentistryCase[]
   doctorPerformance: DentistryDoctorPerformance[]
 }
+
+/** Dental appointment count grouped by appointment status */
+export interface DentalAppointmentStatus {
+  statusName: string
+  count: number
+}
+
+/** Dental expense grouped by payment type */
+export interface DentalExpenseByPaymentType {
+  paymentType: string
+  totalAmount: number
+}

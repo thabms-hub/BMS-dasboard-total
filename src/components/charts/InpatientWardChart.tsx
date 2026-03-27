@@ -28,14 +28,14 @@ interface InpatientWardChartProps {
 }
 
 
-export function InpatientWardChart({ data, isLoading, error, className, title = 'ผู้ป่วยในแยกตามตึก/วอร์ด' }: InpatientWardChartProps) {
+export function InpatientWardChart({ data, isLoading, error, className, title = 'ผู้ป่วยในแยกตามตึก/วอร์ด ที่รักษาตัวอยู่' }: InpatientWardChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   if (isLoading) {
     return (
       <Card className={cn(className)}>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด</CardTitle>
+          <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด ที่รักษาตัวอยู่</CardTitle>
         </CardHeader>
         <CardContent>
           <Skeleton className="h-[280px] w-full" />
@@ -48,7 +48,7 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
     return (
       <Card className={cn(className)}>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด</CardTitle>
+          <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด ที่รักษาตัวอยู่</CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState title="ไม่สามารถโหลดข้อมูลผู้ป่วยในได้" description={error.message} />
@@ -61,7 +61,7 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
     return (
       <Card className={cn(className)}>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด</CardTitle>
+          <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด ที่รักษาตัวอยู่</CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState title="ไม่มีข้อมูลผู้ป่วยใน" />
@@ -84,7 +84,7 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
     <Card ref={containerRef} className={cn('flex flex-col', className)}>
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
         <div>
-          <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด</CardTitle>
+          <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด ที่รักษาตัวอยู่</CardTitle>
           <CardDescription className="text-base font-semibold text-foreground">
             รวมทั้งสิ้น: {totalPatients.toLocaleString()} คน
             {yesterdayPatientCount > 0 && (

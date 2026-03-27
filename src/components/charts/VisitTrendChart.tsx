@@ -123,7 +123,7 @@ export function VisitTrendChart({
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             <Tooltip
               labelFormatter={((label: unknown) => formatDateLabel(String(label))) as any}
-              formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as any}
+              formatter={((value: unknown) => [`${Number(value).toLocaleString()} ราย`, '']) as any}
               contentStyle={{
                 borderRadius: '8px',
                 border: '1px solid hsl(var(--border))',
@@ -137,8 +137,8 @@ export function VisitTrendChart({
               stroke="hsl(var(--chart-1))"
               strokeWidth={2}
               fill="url(#visitCountGradient)"
-              dot={false}
-              activeDot={{ r: 5, fill: 'hsl(var(--chart-1))' }}
+              dot={{ r: 4, fill: 'white', stroke: 'hsl(var(--chart-1))', strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: 'white', stroke: 'hsl(var(--chart-1))', strokeWidth: 2 }}
               cursor="pointer"
             />
           </AreaChart>

@@ -77,6 +77,14 @@ function hourExtract(dbType: DatabaseType, timeCol: string): string {
   return `EXTRACT(HOUR FROM ${timeCol})::int`;
 }
 
+/** Returns the first day of the current month as a SQL date expression. */
+function firstDayOfMonth(dbType: DatabaseType): string {
+  if (dbType === 'mysql') {
+    return `DATE_FORMAT(CURDATE(), '%Y-%m-01')`;
+  }
+  return `DATE_TRUNC('month', CURRENT_DATE)::date`;
+}
+
 /** Database-specific random number function. */
 function random(dbType: DatabaseType): string {
   return dbType === 'mysql' ? 'RAND()' : 'RANDOM()';
@@ -114,6 +122,7 @@ export const queryBuilder = {
   currentDate,
   dateFormat,
   dateSubtract,
+  firstDayOfMonth,
   ageCalc,
   hourExtract,
   random,

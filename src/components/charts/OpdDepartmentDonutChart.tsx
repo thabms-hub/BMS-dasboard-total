@@ -86,26 +86,36 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
         color: 'hsl(var(--popover-foreground))',
         padding: '10px 14px',
         fontSize: 12,
-        maxWidth: 220,
+        minWidth: 220,
+        maxWidth: 280,
       }}
     >
       {isOthers ? (
         <>
           <p style={{ fontWeight: 600, marginBottom: 6 }}>
-            อื่นๆ — {slice.value.toLocaleString()} ราย
+            อื่นๆ — {slice.value.toLocaleString()} ราย ({slice.payload.others!.length} แผนก)
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {slice.payload.others!.map((d) => (
-              <div
-                key={d.departmentName}
-                style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}
-              >
-                <span style={{ color: 'hsl(var(--muted-foreground))' }}>
-                  {d.departmentName}
-                </span>
-                <span style={{ fontWeight: 500 }}>{d.visitCount.toLocaleString()}</span>
-              </div>
-            ))}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}
+          >
+            {slice.payload.others!
+              .slice()
+              .sort((a, b) => b.visitCount - a.visitCount)
+              .map((d) => (
+                <div
+                  key={d.departmentName}
+                  style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}
+                >
+                  <span style={{ color: 'hsl(var(--muted-foreground))', flex: 1 }}>
+                    {d.departmentName}
+                  </span>
+                  <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{d.visitCount.toLocaleString()} ราย</span>
+                </div>
+              ))}
           </div>
         </>
       ) : (
@@ -223,8 +233,8 @@ export function OpdDepartmentDonutChart({
     <Card ref={containerRef} className={cn(className)}>
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
         <div>
-          <CardTitle className="text-lg">
-            ผู้ป่วยนอกเดือนนี้แยกตามแผนก{' '}
+          <CardTitle className="text-base">
+            การเข้ารับบริการเดือนนี้แยกตามแผนก{' '}
             <span className="mx-1 text-muted-foreground/50">|</span>{' '}
             <span className="font-semibold text-foreground">
               {total.toLocaleString()}
@@ -232,7 +242,7 @@ export function OpdDepartmentDonutChart({
             ราย
           </CardTitle>
           <CardDescription>
-            แยกตามคลินิก/แผนก เฉพาะ OPD (ไม่รวม IPD)
+            แยกตามคลินิก/แผนก (รวม OPD และ IPD)
           </CardDescription>
         </div>
         <ChartExportMenu containerRef={containerRef} data={data} title={title} />
@@ -240,7 +250,7 @@ export function OpdDepartmentDonutChart({
       <CardContent>
           <div className="flex items-center gap-4">
           {/* Donut chart — 60% */}
-          <div className="basis-3/5 min-w-0 overflow-hidden">
+          <div className="basis-3/5 min-w-0 overflow-visible">
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie

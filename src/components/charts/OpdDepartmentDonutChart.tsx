@@ -4,6 +4,7 @@
 // =============================================================================
 
 import { useMemo, useRef } from 'react'
+import { RotateCw } from 'lucide-react'
 import {
   PieChart,
   Pie,
@@ -12,6 +13,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
 import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
@@ -37,6 +39,7 @@ interface OpdDepartmentDonutChartProps {
   data: DepartmentData[]
   isLoading: boolean
   error?: Error | null
+  onRetry?: () => Promise<void>
   className?: string
   title?: string
 }
@@ -161,6 +164,7 @@ export function OpdDepartmentDonutChart({
   data,
   isLoading,
   error,
+  onRetry,
   className,
   title = 'ผู้ป่วยนอกเดือนนี้แยกตามแผนก',
 }: OpdDepartmentDonutChartProps) {
@@ -207,10 +211,23 @@ export function OpdDepartmentDonutChart({
           <CardTitle className="text-lg">ผู้ป่วยนอกเดือนนี้แยกตามแผนก</CardTitle>
         </CardHeader>
         <CardContent>
-          <EmptyState
-            title="ไม่สามารถโหลดข้อมูลได้"
-            description={error.message}
-          />
+          <div className="flex flex-col items-center justify-center gap-4 py-6">
+            <EmptyState
+              title="ไม่สามารถโหลดข้อมูลได้"
+              description={error.message}
+            />
+            {onRetry && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRetry}
+                className="gap-2"
+              >
+                <RotateCw className="h-4 w-4" />
+                ลองอีกครั้ง
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     )

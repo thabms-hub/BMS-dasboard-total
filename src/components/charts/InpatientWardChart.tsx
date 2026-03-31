@@ -3,6 +3,7 @@
 // =============================================================================
 
 import { useRef } from 'react'
+import { RotateCw } from 'lucide-react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -14,6 +15,7 @@ import {
 } from 'recharts'
 import type { IpdWardDistribution } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
 import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
@@ -23,12 +25,13 @@ interface InpatientWardChartProps {
   data: IpdWardDistribution[]
   isLoading: boolean
   error?: Error | null
+  onRetry?: () => Promise<void>
   className?: string
   title?: string
 }
 
 
-export function InpatientWardChart({ data, isLoading, error, className, title = 'ผู้ป่วยในแยกตามตึก/วอร์ด ที่รักษาตัวอยู่' }: InpatientWardChartProps) {
+export function InpatientWardChart({ data, isLoading, error, onRetry, className, title = 'ผู้ป่วยในแยกตามตึก/วอร์ด ที่รักษาตัวอยู่' }: InpatientWardChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   if (isLoading) {
@@ -51,7 +54,20 @@ export function InpatientWardChart({ data, isLoading, error, className, title = 
           <CardTitle className="text-sm font-medium">ผู้ป่วยในแยกตามตึก/วอร์ด ที่รักษาตัวอยู่</CardTitle>
         </CardHeader>
         <CardContent>
-          <EmptyState title="ไม่สามารถโหลดข้อมูลผู้ป่วยในได้" description={error.message} />
+          <div className="flex flex-col items-center justify-center gap-4 py-6">
+            <EmptyState title="ไม่สามารถโหลดข้อมูลผู้ป่วยในได้" description={error.message} />
+            {onRetry && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRetry}
+                className="gap-2"
+              >
+                <RotateCw className="h-4 w-4" />
+                ลองอีกครั้ง
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     )

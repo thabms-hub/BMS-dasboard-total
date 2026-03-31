@@ -4,7 +4,9 @@
 // =============================================================================
 
 import { useRef } from 'react'
+import { RotateCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { PttypeGroupItem } from '@/services/kpiService'
@@ -25,6 +27,7 @@ interface PttypeDistributionCardProps {
   isLoading: boolean
   isError?: boolean
   error?: Error | null
+  onRetry?: () => Promise<void>
   className?: string
   title?: string
   description?: string
@@ -36,6 +39,7 @@ export function PttypeDistributionCard({
   isLoading,
   isError,
   error,
+  onRetry,
   className,
   title = 'ผู้ป่วย (OPD) มารับบริการในวันนี้',
   description = 'แยกตามกลุ่มสิทธิ์การรักษา',
@@ -69,7 +73,20 @@ export function PttypeDistributionCard({
             ))}
           </div>
         ) : isError ? (
-          <p className="text-xs text-destructive">{error?.message ?? 'ไม่สามารถโหลดข้อมูลได้'}</p>
+          <div className="flex flex-col items-center justify-center gap-3 py-6">
+            <p className="text-xs text-destructive text-center">{error?.message ?? 'ไม่สามารถโหลดข้อมูลได้'}</p>
+            {onRetry && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRetry}
+                className="gap-2"
+              >
+                <RotateCw className="h-4 w-4" />
+                ลองอีกครั้ง
+              </Button>
+            )}
+          </div>
         ) : !data || data.length === 0 ? (
           <p className="text-xs text-muted-foreground">{emptyText}</p>
         ) : (

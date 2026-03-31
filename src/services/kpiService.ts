@@ -1261,7 +1261,7 @@ export async function getBedStats(config: ConnectionConfig): Promise<BedStats> {
     executeSqlViaApi(
       `SELECT count(distinct b.bedno) as total ` +
       `FROM roomno r, bedno b, bed_status_type bt, ward w ` +
-      `WHERE r.roomno = b.roomno ` +
+      `WHERE r.roomno = b.roomno and r.ward = w.ward  ` +
       `AND b.bed_status_type_id = bt.bed_status_type_id ` +
       `AND bt.is_available = 'Y' ` +
       `AND w.ward_active = 'Y' ` +

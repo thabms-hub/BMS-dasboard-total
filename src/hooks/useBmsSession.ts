@@ -57,7 +57,12 @@ export function useBmsSession(): UseBmsSessionResult {
       const userInfo = extractUserInfo(response)
       const systemInfo = extractSystemInfo(response)
 
-      const dbType: DatabaseType = await detectDatabaseType(config)
+      // If the session response already carries bms_database_type, use it directly.
+      // Only fall back to SELECT VERSION() detection when it is absent.
+      const sessionDbType = response.result?.user_info?.bms_database_type
+      const dbType: DatabaseType = sessionDbType
+        ? config.databaseType
+        : await detectDatabaseType(config)
       const updatedConfig: ConnectionConfig = { ...config, databaseType: dbType }
 
       const newSession: Session = {

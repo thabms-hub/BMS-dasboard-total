@@ -106,11 +106,16 @@ export function extractConnectionConfig(response: BmsSessionResponse): Connectio
     );
   }
 
+  // Use database type from session response when available; fall back to
+  // 'mysql' so that detectDatabaseType() can confirm via VERSION() query.
+  const rawDbType = userInfo?.bms_database_type?.toLowerCase() ?? '';
+  const databaseType: DatabaseType = rawDbType.includes('postgres') ? 'postgresql' : 'mysql';
+
   return {
     apiUrl,
     bearerToken,
     appIdentifier: APP_IDENTIFIER,
-    databaseType: 'mysql', // default; updated after VERSION query
+    databaseType,
   };
 }
 
@@ -164,16 +169,12 @@ export async function executeSqlViaApi(
   const timeoutId = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS);
 
   try {
-    // In dev mode, route through local CORS proxy to avoid browser CORS blocks.
-    // In production the server must set correct CORS headers.
-    const isDev = import.meta.env.DEV;
-    const fetchUrl = isDev
-      ? 'http://localhost:3001/proxy'
-      : `${config.apiUrl}/api/sql`;
-
-    const extraHeaders: Record<string, string> = isDev
-      ? { 'x-target-url': config.apiUrl }
-      : {};
+    // Route all requests through the /bms-proxy endpoint.
+    // In dev: handled by the Vite middleware (vite.config.ts).
+    // In production: handled by the nginx proxy_pass block (nginx.conf).
+    // Both forward to {bms_url}/api/sql using the x-target-url header.
+    const fetchUrl = '/bms-proxy';
+    const extraHeaders: Record<string, string> = { 'x-target-url': config.apiUrl };
 
     const response = await fetch(fetchUrl, {
       method: 'POST',

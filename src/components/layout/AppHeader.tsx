@@ -12,6 +12,7 @@ import { LogOut, Moon, Sun } from 'lucide-react';
 const PAGE_TITLES: Record<string, string> = {
   '/': 'ภาพรวม',
   '/trends': 'แนวโน้ม',
+  '/appointments': 'ระบบนัดหมาย',
   '/departments': 'แผนก',
   '/demographics': 'ข้อมูลประชากร',
 };

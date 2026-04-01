@@ -7,6 +7,7 @@ import type {
   ConnectionConfig,
   DentalAppointmentStatus,
   DentalExpenseByPaymentType,
+  DentalServicePlaceCount,
   DentistryCase,
   DentistryDoctorPerformance,
   DentistryInsuranceDistribution,
@@ -51,7 +52,8 @@ export async function getDentistryCases(
       d1.an,
       o.hn,
       o.vstdate,
-      CONCAT(d2.name, ' ', d1.ttcode) AS tm_name,
+      d2.code AS ttcode,
+      COALESCE(d2.name, 'ไม่ระบุชื่อหัตถการ') AS tm_name,
       d3.name AS doctor_name,
       d4.name AS helper_name,
       CONCAT(p.pname, p.fname, ' ', p.lname) AS ptname,
@@ -288,23 +290,28 @@ export async function getDentalAppointmentStatus(
 }
 
 /**
- * Get count of dental care records performed outside the service facility.
- * Condition: dental_care_service_place_type_id = '2'
+ * Get dental care counts split by service place:
+ * in-facility (dental_care_service_place_type_id != '2' or NULL)
+ * and out-of-facility (dental_care_service_place_type_id = '2').
  */
 export async function getDentalOutServiceCount(
   config: ConnectionConfig,
   startDate: string,
   endDate: string,
-): Promise<number> {
+): Promise<DentalServicePlaceCount> {
   const sql =
-    `SELECT COUNT(*) AS total_count
+    `SELECT
+      SUM(CASE WHEN dc.dental_care_service_place_type_id = '2' THEN 1 ELSE 0 END) AS out_service_count,
+      SUM(CASE WHEN COALESCE(dc.dental_care_service_place_type_id, '1') != '2' THEN 1 ELSE 0 END) AS in_service_count
     FROM dental_care dc
-    WHERE DATE(dc.entry_datetime) BETWEEN '${startDate}' AND '${endDate}'
-      AND dc.dental_care_service_place_type_id = '2'`;
+    WHERE DATE(dc.entry_datetime) BETWEEN '${startDate}' AND '${endDate}'`;
 
   const response = await executeSqlViaApi(sql, config);
-  const rows = parseQueryResponse(response, (row) => Number(row['total_count'] ?? 0));
-  return rows[0] ?? 0;
+  const rows = parseQueryResponse(response, (row) => ({
+    inService: Number(row['in_service_count'] ?? 0),
+    outService: Number(row['out_service_count'] ?? 0),
+  }));
+  return rows[0] ?? { inService: 0, outService: 0 };
 }
 
 /**

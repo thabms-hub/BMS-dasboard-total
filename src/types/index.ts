@@ -280,6 +280,8 @@ export interface DentistrySummary {
   totalCases: number
   totalVisits: number
   totalIPDCases: number
+  yesterdayVisits: number
+  yesterdayIPDCases: number
   casesByVisitType: DentistryVisitTypeDistribution[]
   casesByInsurance: DentistryInsuranceDistribution[]
   cases: DentistryCase[]
@@ -306,6 +308,7 @@ export interface DentalServicePlaceCount {
 
 export interface ErDashboardKpis {
   todayCount: number
+  yesterdayCount: number
   monthCount: number
   activeTreatmentCount: number
 }
@@ -367,6 +370,7 @@ export interface ErAccidentTypeItem {
 }
 
 export interface ErTopProcedureItem {
+  operCode: string
   operName: string
   caseCount: number
 }
@@ -396,6 +400,9 @@ export interface ErCaseWithWaitTime {
   hn: string
   vn: string
   oqueue: string
+  enterErTime: string
+  doctorTxTime: string
+  finishTime: string
   waitBeforeDoctorMinutes: number
   doctorExamMinutes: number
   triageLevel: string

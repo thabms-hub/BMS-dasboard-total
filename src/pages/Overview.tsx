@@ -185,8 +185,11 @@ export default function Overview() {
   )
   const {
     data: ipdWardDistribution,
-    isLoading: isWardLoading,    isError: isWardError,
-    error: wardError,  } = useQuery<Awaited<ReturnType<typeof getIpdWardDistribution>>>({
+    isLoading: isWardLoading,
+    isError: isWardError,
+    error: wardError,
+    execute: retryWardData,
+  } = useQuery<Awaited<ReturnType<typeof getIpdWardDistribution>>>({
     queryFn: ipdWardFn,
     enabled: isConnected,
   })
@@ -200,6 +203,7 @@ export default function Overview() {
     isLoading: isOpdDeptLoading,
     isError: isOpdDeptError,
     error: opdDeptError,
+    execute: retryOpdDeptData,
   } = useQuery<Awaited<ReturnType<typeof getOpdDepartmentThisMonth>>>({
     queryFn: opdDepartmentFn,
     enabled: isConnected,
@@ -274,6 +278,7 @@ export default function Overview() {
     isLoading: isPttypeLoading,
     isError: isPttypeError,
     error: pttypeError,
+    execute: retryPttypeData,
   } = useQuery<Awaited<ReturnType<typeof getPttypeDistribution>>>({
     queryFn: pttypeFn,
     enabled: isConnected,
@@ -288,6 +293,7 @@ export default function Overview() {
     isLoading: isIPDDischargesLoading,
     isError: isIPDDischargesError,
     error: ipdDischargesError,
+    execute: retryIpdDischargesData,
   } = useQuery<Awaited<ReturnType<typeof getThisMonthIPDDischarges>>>({
     queryFn: ipdDischargesFn,
     enabled: isConnected,
@@ -600,6 +606,7 @@ export default function Overview() {
           isLoading={isPttypeLoading}
           isError={isPttypeError}
           error={isPttypeError ? pttypeError : null}
+          onRetry={retryPttypeData}
           className="lg:col-span-4"
         />
 
@@ -756,6 +763,7 @@ export default function Overview() {
           data={opdDepartmentData ?? []}
           isLoading={isOpdDeptLoading}
           error={isOpdDeptError ? opdDeptError : null}
+          onRetry={retryOpdDeptData}
           className="lg:col-span-4"
         />
 
@@ -764,6 +772,7 @@ export default function Overview() {
           data={ipdWardDistribution ?? []}
           isLoading={isWardLoading}
           error={isWardError ? wardError : null}
+          onRetry={retryWardData}
           className="lg:col-span-5"
         />
 
@@ -773,6 +782,7 @@ export default function Overview() {
           isLoading={isIPDDischargesLoading}
           isError={isIPDDischargesError}
           error={isIPDDischargesError ? ipdDischargesError : null}
+          onRetry={retryIpdDischargesData}
           title="ผู้ป่วยใน ที่จำหน่ายในเดือนนี้"
           description="แยกตามกลุ่มสิทธิ์การรักษา"
           emptyText="ไม่มีข้อมูลผู้ป่วยในที่จำหน่ายในเดือนนี้"

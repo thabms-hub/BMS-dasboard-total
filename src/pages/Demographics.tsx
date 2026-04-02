@@ -2,7 +2,8 @@
 // BMS Session KPI Dashboard - Demographics & Insurance Page (T074 / US4)
 // =============================================================================
 
-import { useState, useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
+import { usePersistentDateRange } from '@/hooks/usePersistentDateRange'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
@@ -10,7 +11,6 @@ import {
   getAgeGroupDistribution,
   getPatientTypeDistribution,
 } from '@/services/kpiService'
-import { getDateRange } from '@/utils/dateUtils'
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
 import { GenderChart } from '@/components/charts/GenderChart'
 import { AgeGroupChart } from '@/components/charts/AgeGroupChart'
@@ -37,10 +37,8 @@ type AgeGroupData = Awaited<ReturnType<typeof getAgeGroupDistribution>>
 export default function Demographics() {
   const { connectionConfig, session } = useBmsSessionContext()
 
-  // Date range state — default to last 30 days
-  const defaultRange = useMemo(() => getDateRange(30), [])
-  const [startDate, setStartDate] = useState(defaultRange.startDate)
-  const [endDate, setEndDate] = useState(defaultRange.endDate)
+  // Date range state — persisted to localStorage
+  const { startDate, endDate, setRange } = usePersistentDateRange('demographics', 30)
 
   const isConnected = connectionConfig !== null && session !== null
 
@@ -97,9 +95,8 @@ export default function Demographics() {
 
   // ----- Date range handler -----
   const handleRangeChange = useCallback((start: string, end: string) => {
-    setStartDate(start)
-    setEndDate(end)
-  }, [])
+    setRange(start, end)
+  }, [setRange])
 
   const anyLoading =
     genderQuery.isLoading ||

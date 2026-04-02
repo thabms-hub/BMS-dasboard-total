@@ -76,11 +76,10 @@ export async function getOpdVisitDetail(
   const todaySql =
     `SELECT ` +
     `COUNT(DISTINCT ovst.vn) as count_vn, ` +
-    `COUNT(DISTINCT CASE WHEN oa.visit_vn IS NULL THEN ovst.vn END) as walkin, ` +
-    `COUNT(DISTINCT CASE WHEN oa.visit_vn IS NOT NULL THEN ovst.vn END) as oappoint ` +
+    `COUNT(DISTINCT CASE WHEN oa.hn <> '' THEN oa.hn END) as oappoint ` +
     `FROM ovst ` +
     `INNER JOIN spclty s ON s.spclty = ovst.spclty ` +
-    `LEFT JOIN oapp oa ON ovst.hn = oa.hn AND oa.depcode = ovst.main_dep AND ovst.vstdate = oa.nextdate ` +
+    `LEFT JOIN oapp oa ON ovst.hn = oa.hn AND ovst.vstdate = oa.nextdate AND (oapp_status_id IS NULL OR oapp_status_id < 4) ` +
     `WHERE ovst.vstdate = ${today}`;
 
   const yesterdaySql =
@@ -97,14 +96,14 @@ export async function getOpdVisitDetail(
 
   const todayRows = parseQueryResponse(todayResp, (row) => ({
     total: Number(row['count_vn'] ?? 0),
-    walkin: Number(row['walkin'] ?? 0),
     appointment: Number(row['oappoint'] ?? 0),
   }));
   const yesterdayRows = parseQueryResponse(yesterdayResp, (row) =>
     Number(row['count_vn'] ?? 0),
   );
 
-  const today_ = todayRows[0] ?? { total: 0, walkin: 0, appointment: 0 };
+  const today_ = todayRows[0] ?? { total: 0, appointment: 0 };
+  const walkin = today_.total - today_.appointment;
   const yesterdayTotal = yesterdayRows[0] ?? 0;
 
   const trendPercent =
@@ -114,7 +113,7 @@ export async function getOpdVisitDetail(
 
   return {
     total: today_.total,
-    walkin: today_.walkin,
+    walkin,
     appointment: today_.appointment,
     yesterdayTotal,
     trendPercent,
@@ -1262,7 +1261,7 @@ export async function getBedStats(config: ConnectionConfig): Promise<BedStats> {
     executeSqlViaApi(
       `SELECT count(distinct b.bedno) as total ` +
       `FROM roomno r, bedno b, bed_status_type bt, ward w ` +
-      `WHERE r.roomno = b.roomno ` +
+      `WHERE r.roomno = b.roomno and r.ward = w.ward  ` +
       `AND b.bed_status_type_id = bt.bed_status_type_id ` +
       `AND bt.is_available = 'Y' ` +
       `AND w.ward_active = 'Y' ` +

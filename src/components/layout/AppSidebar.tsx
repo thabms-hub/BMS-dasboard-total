@@ -11,7 +11,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  HeartPulse,
   LayoutDashboard,
   Leaf,
   Scissors,
@@ -20,9 +19,21 @@ import {
   Stethoscope,
   TrendingUp,
   Users,
+  Venus,
 } from 'lucide-react'
 import type { LucideIcon, LucideProps } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+function WomanIcon({ className, size = 24, style, ...props }: LucideProps) {
+  return (
+    <Venus
+      className={className}
+      size={size}
+      style={{ transform: 'rotate(30deg)', ...style }}
+      {...props}
+    />
+  )
+}
 
 function ToothIcon({ className, size = 24, ...props }: LucideProps) {
   return (
@@ -70,7 +81,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: 'อายุรกรรม', path: '/departments/internal-medicine', icon: Stethoscope },
       { label: 'ศัลยกรรม', path: '/departments/surgery', icon: Scissors },
       { label: 'สูติกรรม', path: '/departments/obstetrics', icon: Baby },
-      { label: 'นรีเวชกรรม', path: '/departments/gynecology', icon: HeartPulse },
+      { label: 'นรีเวชกรรม', path: '/departments/gynecology', icon: WomanIcon as unknown as LucideIcon },
       { label: 'กุมารเวชกรรม', path: '/departments/pediatrics', icon: SmilePlus },
       { label: 'ทันตกรรม', path: '/departments/dentistry', icon: ToothIcon as unknown as LucideIcon },
       { label: 'แพทย์แผนไทย', path: '/departments/thai-traditional', icon: Leaf },

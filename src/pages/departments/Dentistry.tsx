@@ -47,7 +47,8 @@ import {
   getDentalOutServiceCount,
   getDentalExpenseByPaymentType,
 } from '@/services/DentalService'
-import { getDateRange, formatDate, formatDateTime } from '@/utils/dateUtils'
+import { formatDate, formatDateTime } from '@/utils/dateUtils'
+import { usePersistentDateRange } from '@/hooks/usePersistentDateRange'
 import { cn } from '@/lib/utils'
 import type {
   DentistrySummary,
@@ -71,10 +72,8 @@ export default function Dentistry() {
   const topProceduresContainerRef = useRef<HTMLDivElement>(null)
   const paymentExpenseContainerRef = useRef<HTMLDivElement>(null)
 
-  // Date range state - default to today
-  const defaultRange = useMemo(() => getDateRange(0), [])
-  const [startDate, setStartDate] = useState(defaultRange.startDate)
-  const [endDate, setEndDate] = useState(defaultRange.endDate)
+  // Date range state - persisted to localStorage, default 30 days
+  const { startDate, endDate, setRange } = usePersistentDateRange('dentistry', 30)
 
   const isConnected = connectionConfig !== null && session !== null
   const today = formatDate(new Date())
@@ -170,10 +169,9 @@ export default function Dentistry() {
   })
 
   const handleRangeChange = useCallback((newStart: string, newEnd: string) => {
-    setStartDate(newStart)
-    setEndDate(newEnd)
+    setRange(newStart, newEnd)
     setCurrentPage(0) // Reset to first page when date changes
-  }, [])
+  }, [setRange])
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
@@ -1247,12 +1245,13 @@ export default function Dentistry() {
       {/* Page header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <ToothIcon className="h-5 w-5 text-primary" />
+          <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 shadow-md ring-1 ring-primary/20">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/30 to-transparent" />
+            <ToothIcon className="relative h-10 w-10 text-primary drop-shadow-sm" />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">ระบบงานทันตกรรม</h2>
-            <p className="text-sm text-muted-foreground">Dentistry</p>
+          <div className="space-y-0.5">
+            <h2 className="text-3xl font-bold tracking-tight">ระบบงานทันตกรรม</h2>
+            <p className="text-base text-muted-foreground">Dentistry</p>
             <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="h-3.5 w-3.5" />

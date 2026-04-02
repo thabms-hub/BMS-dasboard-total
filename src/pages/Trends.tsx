@@ -4,6 +4,7 @@
 // =============================================================================
 
 import { useState, useCallback, useMemo } from 'react'
+import { usePersistentDateRange } from '@/hooks/usePersistentDateRange'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
@@ -26,7 +27,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/dashboard/EmptyState'
-import { getDateRange } from '@/utils/dateUtils'
 import {
   TrendingUp,
   BarChart3,
@@ -71,9 +71,7 @@ function formatDateLabel(dateStr: string): string {
 export default function Trends() {
   const { connectionConfig, session } = useBmsSessionContext()
 
-  const defaultRange = useMemo(() => getDateRange(30), [])
-  const [startDate, setStartDate] = useState(defaultRange.startDate)
-  const [endDate, setEndDate] = useState(defaultRange.endDate)
+  const { startDate, endDate, setRange } = usePersistentDateRange('trends', 30)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const isReady = connectionConfig !== null && session !== null
@@ -143,11 +141,10 @@ export default function Trends() {
   const trendSummary = useMemo(() => computeTrendSummary(dailyData ?? []), [dailyData])
 
   const handleRangeChange = useCallback((newStart: string, newEnd: string) => {
-    setStartDate(newStart)
-    setEndDate(newEnd)
+    setRange(newStart, newEnd)
     setSelectedDate(null)
     resetHourly()
-  }, [resetHourly])
+  }, [setRange, resetHourly])
 
   const handleDateClick = useCallback((date: string) => {
     setSelectedDate(date)

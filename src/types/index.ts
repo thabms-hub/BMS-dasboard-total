@@ -297,3 +297,145 @@ export interface DentalExpenseByPaymentType {
   paymentType: string
   totalAmount: number
 }
+
+/** Dental care count split by service place (in-facility vs out-of-facility) */
+export interface DentalServicePlaceCount {
+  inService: number
+  outService: number
+}
+
+export interface ErDashboardKpis {
+  todayCount: number
+  monthCount: number
+  activeTreatmentCount: number
+}
+
+export interface ErTriageDistributionItem {
+  triageLevel: string
+  patientCount: number
+}
+
+export interface ErLeaveStatusItem {
+  leaveStatus: string
+  patientCount: number
+}
+
+export interface ErLevel1SurvivalStats {
+  level1Total: number
+  survivedCount: number
+  deathCount: number
+  survivalRate: number
+}
+
+export interface ErTriagePeriodRow {
+  erPeriod: string
+  level1Label?: string
+  level2Label?: string
+  level3Label?: string
+  level4Label?: string
+  level5Label?: string
+  level1: number
+  level2: number
+  level3: number
+  level4: number
+  level5: number
+}
+
+export interface ErTriageWaitTimeItem {
+  triageLevel: string
+  avgWaitMinutes: number
+}
+
+export interface ErTopCauseItem {
+  causeName: string
+  caseCount: number
+}
+
+export interface ErDispositionItem {
+  disposition: string
+  caseCount: number
+}
+
+export interface ErMonthlyTrendItem {
+  month: string
+  patientCount: number
+}
+
+export interface ErAccidentTypeItem {
+  accidentTypeName: string
+  patientCount: number
+}
+
+export interface ErTopProcedureItem {
+  operName: string
+  caseCount: number
+}
+
+export interface ErProcedureVsVnStats {
+  dayLabel: string
+  procedureCount: number
+  vnCount: number
+  treatmentAmount: number
+}
+
+export interface ErWaitTimeStats {
+  avgWaitBeforeDoctorMinutes: number
+  avgDoctorExamMinutes: number
+  caseCount: number
+}
+
+export interface ErOutlierCase {
+  hn: string
+  vn: string
+  waitMinutes: number
+  triageLevel: string
+  doctorName: string
+}
+
+export interface ErCaseWithWaitTime {
+  hn: string
+  vn: string
+  oqueue: string
+  waitBeforeDoctorMinutes: number
+  doctorExamMinutes: number
+  triageLevel: string
+}
+
+export interface ErDoctorPatientLoadItem {
+  doctorCode: string
+  doctorName: string
+  patientCount: number
+}
+
+export interface AppointmentKpis {
+  totalToday: number
+  attendedToday: number
+  noShowToday: number
+  cancelledToday: number
+}
+
+export interface AppointmentClinicRateItem {
+  clinicCode: string
+  clinicName: string
+  totalAppointments: number
+  attendedAppointments: number
+  attendanceRate: number
+}
+
+export interface AppointmentMonthlyTrendItem {
+  month: string
+  totalAppointments: number
+  cancelledAppointments: number
+  noShowAppointments: number
+}
+
+export interface AppointmentCancelReasonItem {
+  reason: string
+  cancelledCount: number
+}
+
+export interface AppointmentTopDoctorItem {
+  doctorCode: string
+  doctorName: string
+  totalAppointments: number
+}

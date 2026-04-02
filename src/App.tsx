@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 
 const Overview = lazy(() => import('@/pages/Overview'))
 const Trends = lazy(() => import('@/pages/Trends'))
+const Appointments = lazy(() => import('@/pages/Appointments'))
 const DepartmentAnalytics = lazy(() => import('@/pages/DepartmentAnalytics'))
 const Demographics = lazy(() => import('@/pages/Demographics'))
 
@@ -27,6 +28,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Overview />} />
         <Route path="/trends" element={<Trends />} />
+        <Route path="/appointments" element={<Appointments />} />
         <Route path="/departments" element={<DepartmentAnalytics />} />
         <Route path="/departments/internal-medicine" element={<InternalMedicine />} />
         <Route path="/departments/surgery" element={<Surgery />} />

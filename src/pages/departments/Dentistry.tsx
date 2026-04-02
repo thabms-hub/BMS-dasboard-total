@@ -4,8 +4,8 @@
 // With date range filtering capabilities
 // =============================================================================
 
-import { useState, useCallback, useRef, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, RefreshCw, CalendarDays, Clock } from 'lucide-react'
+import { useState, useCallback, useMemo, useRef } from 'react'
+import { ChevronLeft, ChevronRight, RefreshCw, CalendarDays, Clock, AlertCircle, RotateCcw } from 'lucide-react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -56,6 +56,7 @@ import type {
   DentistryServiceTypeCount,
   DentalAppointmentStatus,
   DentalExpenseByPaymentType,
+  DentalServicePlaceCount,
 } from '@/types'
 
 export default function Dentistry() {
@@ -126,6 +127,9 @@ export default function Dentistry() {
 
   const {
     data: appointmentStatus,
+    isLoading: isAppointmentStatusLoading,
+    isError: isAppointmentStatusError,
+    error: appointmentStatusError,
     execute: executeAppointmentStatus,
   } = useQuery<DentalAppointmentStatus[]>({
     queryFn: dentalAppointmentStatusFn,
@@ -139,8 +143,11 @@ export default function Dentistry() {
 
   const {
     data: outServiceCount,
+    isLoading: isOutServiceLoading,
+    isError: isOutServiceError,
+    error: outServiceError,
     execute: executeOutServiceCount,
-  } = useQuery<number>({
+  } = useQuery<DentalServicePlaceCount>({
     queryFn: dentalOutServiceFn,
     enabled: isConnected,
   })
@@ -154,6 +161,7 @@ export default function Dentistry() {
     data: expenseByPayment,
     isLoading: isExpenseByPaymentLoading,
     isError: isExpenseByPaymentError,
+    error: expenseByPaymentError,
     execute: executeExpenseByPayment,
   } = useQuery<DentalExpenseByPaymentType[]>({
     queryFn: dentalExpenseByPaymentFn,
@@ -189,6 +197,36 @@ export default function Dentistry() {
     executeOutServiceCount,
     executeExpenseByPayment,
   ])
+
+  const getCardErrorMessage = useCallback(
+    (queryError: Error | null) => {
+      if (!isConnected) {
+        return 'การเชื่อมต่อขาดหาย กรุณาเชื่อมต่อ BMS Session แล้วลองอีกครั้ง'
+      }
+      return queryError?.message ?? 'ไม่สามารถโหลดข้อมูลได้'
+    },
+    [isConnected],
+  )
+
+  const renderRetryAction = (onRetry: () => void, queryError: Error | null) => (
+    <div className="flex min-h-[120px] items-center justify-center">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex items-center gap-1.5 text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <p className="text-sm">{getCardErrorMessage(queryError)}</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1.5 text-xs"
+          onClick={onRetry}
+        >
+          <RotateCcw className="h-3 w-3" />
+          ลองอีกครั้ง
+        </Button>
+      </div>
+    </div>
+  )
 
   // ---------------------------------------------------------------------------
   // Pagination logic
@@ -312,16 +350,36 @@ export default function Dentistry() {
   }))
   const totalPaymentExpense = paymentExpenseChartData.reduce((sum, item) => sum + item.value, 0)
 
-  // Top 10 หัตถการที่ทำบ่อย — aggregated client-side from cases
+  // Top 10 หัตถการที่ทำบ่อย — grouped by procedure code
   const topProceduresChartData = useMemo(() => {
     const countMap = new Map<string, number>()
+    const procedureNameByCode = new Map<string, Map<string, number>>()
+
     for (const c of allCases) {
-      const key = c.tmName?.trim()
-      if (!key) continue
-      countMap.set(key, (countMap.get(key) ?? 0) + 1)
+      const code = c.ttcode?.trim()
+      const name = c.tmName?.trim() || 'ไม่ระบุชื่อหัตถการ'
+      if (!code) continue
+
+      countMap.set(code, (countMap.get(code) ?? 0) + 1)
+
+      const names = procedureNameByCode.get(code) ?? new Map<string, number>()
+      names.set(name, (names.get(name) ?? 0) + 1)
+      procedureNameByCode.set(code, names)
     }
+
     return Array.from(countMap.entries())
-      .map(([name, count]) => ({ name, count }))
+      .map(([code, count]) => {
+        const names = procedureNameByCode.get(code)
+        const procedureName = names
+          ? Array.from(names.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'ไม่ระบุชื่อหัตถการ'
+          : 'ไม่ระบุชื่อหัตถการ'
+
+        return {
+          code,
+          procedureName,
+          count,
+        }
+      })
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
   }, [allCases])
@@ -465,39 +523,18 @@ export default function Dentistry() {
       )
     }
 
-    if (isError) {
-      return (
-        <Card>
-          <CardContent className="pt-6">
-            <EmptyState
-              icon={<ToothIcon className="h-8 w-8" />}
-              title="เกิดข้อผิดพลาด"
-              description={error?.message ?? 'ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้'}
-              action={
-                <button
-                  className="text-sm text-primary underline hover:no-underline"
-                  onClick={execute}
-                >
-                  ลองอีกครั้ง
-                </button>
-              }
-            />
-          </CardContent>
-        </Card>
-      )
-    }
-
     return (
       <div className="space-y-6">
         {/* KPI row */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-12">
           {miniStats.map((stat) => {
             const isCompactPatientCard = stat.label === 'ผู้ป่วยนอก' || stat.label === 'ผู้ป่วยใน'
+            const isCompactKpiCard = stat.label === 'จำนวนหัตถการ'
 
             return (
               <Card
                 key={stat.label}
-                className={cn(isCompactPatientCard ? 'p-2.5 xl:col-span-2' : 'p-3 xl:col-span-3')}
+                className={cn(isCompactPatientCard ? 'p-2.5' : 'p-3', (isCompactPatientCard || isCompactKpiCard) ? 'xl:col-span-2' : 'xl:col-span-3')}
               >
                 <CardContent className="flex flex-col gap-2 p-0">
                   <div className="flex items-center gap-2">
@@ -508,10 +545,18 @@ export default function Dentistry() {
                       {stat.label}
                     </p>
                   </div>
-                  <p className={cn('font-bold text-black', isCompactPatientCard ? 'text-lg' : 'text-xl')}>
-                    {stat.value?.toLocaleString() ?? '0'} {stat.unit}
-                  </p>
-                  {stat.description && <p className="text-xs text-muted-foreground">{stat.description}</p>}
+                  {!isConnected || isError ? (
+                    <div className="pt-1">
+                      {renderRetryAction(execute, error)}
+                    </div>
+                  ) : (
+                    <>
+                      <p className={cn('font-bold text-black', isCompactPatientCard ? 'text-lg' : 'text-xl')}>
+                        {stat.value?.toLocaleString() ?? '0'} {stat.unit}
+                      </p>
+                      {stat.description && <p className="text-xs text-muted-foreground">{stat.description}</p>}
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )
@@ -524,28 +569,45 @@ export default function Dentistry() {
                 </div>
                 <p className="text-sm text-black/90 font-semibold">นัดหมาย</p>
               </div>
-              <p className="text-base font-semibold text-black">
-                ทั้งหมด {totalAppointmentsInRange.toLocaleString()} นัด
-              </p>
-              <p className="text-base font-semibold text-black">
-                มารับบริการ {attendedAppointmentCount.toLocaleString()} ไม่มา {noShowAppointmentCount.toLocaleString()}
-              </p>
+              {isAppointmentStatusLoading ? (
+                <Skeleton className="h-16 w-full" />
+              ) : !isConnected || isAppointmentStatusError ? (
+                renderRetryAction(executeAppointmentStatus, appointmentStatusError)
+              ) : (
+                <>
+                  <p className="text-base font-semibold text-black">
+                    ทั้งหมด {totalAppointmentsInRange.toLocaleString()} นัด
+                  </p>
+                  <p className="text-base font-semibold text-black">
+                    มารับบริการ {attendedAppointmentCount.toLocaleString()} ไม่มา {noShowAppointmentCount.toLocaleString()}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
-          <Card className="p-3 xl:col-span-2">
+          <Card className="p-3 xl:col-span-3">
             <CardContent className="flex flex-col gap-2 p-0">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <ToothIcon className="h-4 w-4" />
                 </div>
-                <p className="text-sm text-black/90 font-semibold leading-tight">
-                  ตรวจสุขภาพฟัน
-                  <br />
-                  นอกสถานบริการ
-                </p>
+                <p className="text-sm text-black/90 font-semibold">ตรวจสุขภาพฟัน</p>
               </div>
-              <p className="text-xl font-bold text-black">{(outServiceCount ?? 0).toLocaleString()} ราย</p>
+              {isOutServiceLoading ? (
+                <Skeleton className="h-14 w-full" />
+              ) : !isConnected || isOutServiceError ? (
+                renderRetryAction(executeOutServiceCount, outServiceError)
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-black">
+                    ในสถานบริการ {(outServiceCount?.inService ?? 0).toLocaleString()} ราย
+                  </p>
+                  <p className="text-sm font-semibold text-black">
+                    นอกสถานบริการ {(outServiceCount?.outService ?? 0).toLocaleString()} ราย
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -557,11 +619,6 @@ export default function Dentistry() {
             <CardHeader className="flex flex-row items-start justify-between space-y-0">
               <div>
                 <CardTitle className="text-lg">10 อันดับหัตถการที่ทำบ่อย</CardTitle>
-                <CardDescription>
-                  {topProceduresChartData.length > 0
-                    ? `รวม ${topProceduresChartData.reduce((s, d) => s + d.count, 0).toLocaleString()} ครั้ง จากช่วงวันที่เลือก`
-                    : 'ไม่มีข้อมูล'}
-                </CardDescription>
               </div>
               {topProceduresChartData.length > 0 && (
                 <ChartExportMenu
@@ -572,51 +629,70 @@ export default function Dentistry() {
               )}
             </CardHeader>
             <CardContent>
-              {topProceduresChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={Math.max(topProceduresChartData.length * 42 + 20, 560)}>
-                  <BarChart
-                    data={topProceduresChartData}
-                    layout="vertical"
-                    margin={{ top: 0, right: 48, left: 8, bottom: 0 }}
-                    barCategoryGap="25%"
-                  >
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
-                    <XAxis
-                      type="number"
-                      allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fontSize: 11 }}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={220}
-                      tick={{ fontSize: 12 }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip
-                      labelFormatter={(label) => `หัตถการ: ${label}`}
-                      formatter={(value) => [`${value} ครั้ง`, 'จำนวน']}
-                      contentStyle={{
-                        borderRadius: '8px',
-                        border: '1px solid hsl(var(--border))',
-                        background: 'hsl(var(--card))',
-                        fontSize: '12px',
-                      }}
-                      cursor={false}
-                    />
-                    <Bar
-                      dataKey="count"
-                      fill="hsl(var(--chart-2) / 0.75)"
-                      radius={[0, 4, 4, 0]}
-                      maxBarSize={28}
-                      isAnimationActive={false}
-                      label={{ position: 'right', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+              {!isConnected || isError ? (
+                renderRetryAction(execute, error)
+              ) : topProceduresChartData.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={Math.max(topProceduresChartData.length * 42 + 20, 560)}>
+                    <BarChart
+                      data={topProceduresChartData}
+                      layout="vertical"
+                      margin={{ top: 0, right: 48, left: 8, bottom: 0 }}
+                      barCategoryGap="25%"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                      <XAxis
+                        type="number"
+                        allowDecimals={false}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 11 }}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="code"
+                        width={110}
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip
+                        labelFormatter={(label, payload) => {
+                          const item = payload?.[0]?.payload
+                          const name = item?.procedureName || 'ไม่ระบุชื่อหัตถการ'
+                          return `รหัสหัตถการ: ${label} (${name})`
+                        }}
+                        formatter={(value) => [`${value} ครั้ง`, 'จำนวน']}
+                        contentStyle={{
+                          borderRadius: '8px',
+                          border: '1px solid hsl(var(--border))',
+                          background: 'hsl(var(--card))',
+                          fontSize: '12px',
+                        }}
+                        cursor={false}
+                      />
+                      <Bar
+                        dataKey="count"
+                        fill="hsl(var(--chart-2) / 0.75)"
+                        radius={[0, 4, 4, 0]}
+                        maxBarSize={28}
+                        isAnimationActive={false}
+                        label={{ position: 'right', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 border-t pt-3">
+                    <p className="text-xs text-muted-foreground mb-2">คำอธิบาย: รหัสหัตถการ</p>
+                    <div className="grid grid-cols-1 gap-1 text-xs md:grid-cols-2">
+                      {topProceduresChartData.map((item) => (
+                        <div key={item.code} className="flex items-start gap-2 min-w-0">
+                          <span className="font-semibold text-foreground shrink-0">{item.code}</span>
+                          <span className="text-muted-foreground truncate">{item.procedureName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col items-center justify-center py-8">
                   <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
@@ -650,11 +726,8 @@ export default function Dentistry() {
                 <div className="flex h-[280px] items-center justify-center">
                   <Skeleton className="h-[240px] w-full" />
                 </div>
-              ) : isDentServiceError ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">{dentServiceError?.message || 'ไม่สามารถโหลดข้อมูลได้'}</p>
-                </div>
+              ) : !isConnected || isDentServiceError ? (
+                renderRetryAction(executeDentService, dentServiceError)
               ) : dentalServiceChartData.length > 0 ? (
                 <div className="flex items-center gap-4">
                   <div className="basis-3/5 min-w-0 overflow-hidden">
@@ -732,7 +805,9 @@ export default function Dentistry() {
               )}
             </CardHeader>
             <CardContent>
-              {insuranceChartData.length > 0 ? (
+              {!isConnected || isError ? (
+                renderRetryAction(execute, error)
+              ) : insuranceChartData.length > 0 ? (
                 <div className="flex items-center gap-4">
                   <div className="basis-3/5 min-w-0 overflow-hidden">
                     <ResponsiveContainer width="100%" height={220}>
@@ -810,11 +885,8 @@ export default function Dentistry() {
               <div className="flex h-[280px] items-center justify-center">
                 <Skeleton className="h-[240px] w-full" />
               </div>
-            ) : isDoctorPerfError ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">{doctorPerfError?.message || 'ไม่สามารถโหลดข้อมูลได้'}</p>
-              </div>
+            ) : !isConnected || isDoctorPerfError ? (
+              renderRetryAction(executeDoctorPerf, doctorPerfError)
             ) : doctorPerformance && doctorPerformance.length > 0 ? (
               <ResponsiveContainer width="100%" height={440}>
                 <ComposedChart
@@ -904,11 +976,8 @@ export default function Dentistry() {
               <div className="flex h-[260px] items-center justify-center">
                 <Skeleton className="h-[220px] w-full" />
               </div>
-            ) : isExpenseByPaymentError ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">ไม่สามารถโหลดข้อมูลค่าใช้จ่ายได้</p>
-              </div>
+            ) : !isConnected || isExpenseByPaymentError ? (
+              renderRetryAction(executeExpenseByPayment, expenseByPaymentError)
             ) : paymentExpenseChartData.length > 0 ? (
               <div className="flex items-center gap-4">
                 <div className="basis-3/5 min-w-0">
@@ -992,7 +1061,9 @@ export default function Dentistry() {
               )}
             </CardHeader>
             <CardContent>
-              {chartData.length > 0 ? (
+              {!isConnected || isError ? (
+                renderRetryAction(execute, error)
+              ) : chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart
                     data={chartData}
@@ -1058,7 +1129,9 @@ export default function Dentistry() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {dentistry && dentistry.cases.length > 0 ? (
+            {!isConnected || isError ? (
+              renderRetryAction(execute, error)
+            ) : dentistry && dentistry.cases.length > 0 ? (
               <>
                 <div className="overflow-x-auto">
                   <Table>
@@ -1197,7 +1270,7 @@ export default function Dentistry() {
           size="sm"
           className="mt-2 gap-1.5 sm:mt-0 text-blue dark:text-white dark:bg-orange-500/5 dark:border-orange-400/60 dark:hover:bg-orange-500/15 dark:hover:border-orange-300"
           onClick={handleRefresh}
-          disabled={isRefreshing}
+          disabled={isRefreshing || !isConnected}
         >
           <RefreshCw
             className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')}

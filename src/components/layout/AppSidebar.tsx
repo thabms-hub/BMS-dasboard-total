@@ -7,6 +7,7 @@ import { Link, useLocation } from 'react-router-dom'
 import {
   Baby,
   Building2,
+  CalendarCheck2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -71,6 +72,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'ภาพรวม', path: '/', icon: LayoutDashboard },
   { label: 'แนวโน้ม', path: '/trends', icon: TrendingUp },
+  { label: 'ระบบนัดหมาย', path: '/appointments', icon: CalendarCheck2 },
   {
     label: 'ภาพรวมแผนก',
     path: '/departments',

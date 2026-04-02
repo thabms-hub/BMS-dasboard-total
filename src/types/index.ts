@@ -419,6 +419,12 @@ export interface AppointmentKpis {
   attendedToday: number
   noShowToday: number
   cancelledToday: number
+  noShowRate: number
+}
+
+export interface AppointmentDepartmentOption {
+  departmentCode: string
+  departmentName: string
 }
 
 export interface AppointmentClinicRateItem {
@@ -426,6 +432,7 @@ export interface AppointmentClinicRateItem {
   clinicName: string
   totalAppointments: number
   attendedAppointments: number
+  noShowAppointments: number
   attendanceRate: number
 }
 
@@ -445,4 +452,19 @@ export interface AppointmentTopDoctorItem {
   doctorCode: string
   doctorName: string
   totalAppointments: number
+}
+
+export interface AppointmentWalkInComparison {
+  bookedCount: number
+  walkInCount: number
+  bookedRate: number
+  walkInRate: number
+}
+
+export interface AppointmentTopClinicItem {
+  clinicCode: string
+  clinicName: string
+  totalAppointments: number
+  noShowAppointments: number
+  noShowRate: number
 }

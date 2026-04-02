@@ -46,6 +46,7 @@ import {
   getDentalAppointmentStatus,
   getDentalOutServiceCount,
   getDentalExpenseByPaymentType,
+  getTodayDentistryMetrics,
 } from '@/services/DentalService'
 import { formatDate, formatDateTime } from '@/utils/dateUtils'
 import { usePersistentDateRange } from '@/hooks/usePersistentDateRange'
@@ -83,8 +84,29 @@ export default function Dentistry() {
     [connectionConfig, startDate, endDate],
   )
 
+  const todayMetricsFn = useCallback(
+    () => getTodayDentistryMetrics(connectionConfig!),
+    [connectionConfig],
+  )
+
   const { data: dentistry, isLoading, isError, error, execute } = useQuery<DentistrySummary>({
     queryFn: dentistrySummaryFn,
+    enabled: isConnected,
+  })
+
+  const {
+    data: todayMetrics,
+    isLoading: isTodayMetricsLoading,
+    isError: isTodayMetricsError,
+    error: todayMetricsError,
+    execute: executeTodayMetrics,
+  } = useQuery<{
+    totalVisits: number
+    totalIPDCases: number
+    yesterdayVisits: number
+    yesterdayIPDCases: number
+  }>({
+    queryFn: todayMetricsFn,
     enabled: isConnected,
   })
 
@@ -178,6 +200,7 @@ export default function Dentistry() {
     try {
       await Promise.all([
         execute(),
+        executeTodayMetrics(),
         executeDoctorPerf(),
         executeDentService(),
         executeAppointmentStatus(),
@@ -191,6 +214,7 @@ export default function Dentistry() {
     }
   }, [
     execute,
+    executeTodayMetrics,
     executeDoctorPerf,
     executeDentService,
     executeAppointmentStatus,
@@ -396,25 +420,34 @@ export default function Dentistry() {
       },
       {
         label: 'ผู้ป่วยนอก',
-        value: dentistry?.totalVisits,
+        value: todayMetrics?.totalVisits,
         unit: 'ราย',
         icon: <Clock className="h-4 w-4" />,
       },
       {
         label: 'ผู้ป่วยใน',
-        value: dentistry?.totalIPDCases,
+        value: todayMetrics?.totalIPDCases,
         unit: 'ราย',
         icon: <Clock className="h-4 w-4" />,
       },
     ],
-    [dentistry],
+    [dentistry, todayMetrics],
   )
+
+  // Calculate percentage change vs yesterday
+  const calculatePercentChange = (current: number, previous: number): { percent: number; isPositive: boolean } => {
+    if (previous === 0) return { percent: 0, isPositive: true }
+    return {
+      percent: Number((((current - previous) / previous) * 100).toFixed(1)),
+      isPositive: current >= previous,
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Content render
   // ---------------------------------------------------------------------------
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoading || isTodayMetricsLoading) {
       return (
         <div className="space-y-6">
           {/* Mini stat cards Skeleton */}
@@ -545,68 +578,106 @@ export default function Dentistry() {
                       {stat.label}
                     </p>
                   </div>
-                  {!isConnected || isError ? (
+                  {!isConnected || (isError && stat.label === 'จำนวนหัตถการ') || (isTodayMetricsError && (stat.label === 'ผู้ป่วยนอก' || stat.label === 'ผู้ป่วยใน')) ? (
                     <div className="pt-1">
-                      {renderRetryAction(execute, error)}
+                      {stat.label === 'จำนวนหัตถการ' ? renderRetryAction(execute, error) : renderRetryAction(executeTodayMetrics, todayMetricsError)}
                     </div>
                   ) : (
                     <>
-                      <p className={cn('font-bold text-black', isCompactPatientCard ? 'text-lg' : 'text-xl')}>
-                        {stat.value?.toLocaleString() ?? '0'} {stat.unit}
-                      </p>
+                      <div className="flex items-baseline gap-2">
+                        <p className={cn(
+                          'font-bold text-2xl',
+                          stat.label === 'ผู้ป่วยนอก' && 'text-blue-600',
+                          stat.label === 'ผู้ป่วยใน' && 'text-green-600',
+                          stat.label === 'จำนวนหัตถการ' && 'text-purple-600',
+                        )}>
+                          {stat.value?.toLocaleString() ?? '0'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{stat.unit}</p>
+                      </div>
                       {stat.description && <p className="text-xs text-muted-foreground">{stat.description}</p>}
+                      {(stat.label === 'ผู้ป่วยนอก' || stat.label === 'ผู้ป่วยใน') && (
+                        <div className="text-xs text-muted-foreground pt-1">
+                          {stat.label === 'ผู้ป่วยนอก' && (() => {
+                            const { percent, isPositive } = calculatePercentChange(todayMetrics?.totalVisits ?? 0, todayMetrics?.yesterdayVisits ?? 0)
+                            return (
+                              <p>
+                                เมื่อวาน {todayMetrics?.yesterdayVisits ?? 0} ราย
+                                <span className={cn('ml-1 font-medium', isPositive ? 'text-green-600' : 'text-red-600')}>
+                                  {isPositive ? '+' : ''}{percent}%
+                                </span>
+                              </p>
+                            )
+                          })()}
+                          {stat.label === 'ผู้ป่วยใน' && (() => {
+                            const { percent, isPositive } = calculatePercentChange(todayMetrics?.totalIPDCases ?? 0, todayMetrics?.yesterdayIPDCases ?? 0)
+                            return (
+                              <p>
+                                เมื่อวาน {todayMetrics?.yesterdayIPDCases ?? 0} ราย
+                                <span className={cn('ml-1 font-medium', isPositive ? 'text-green-600' : 'text-red-600')}>
+                                  {isPositive ? '+' : ''}{percent}%
+                                </span>
+                              </p>
+                            )
+                          })()}
+                        </div>
+                      )}
                     </>
                   )}
                 </CardContent>
               </Card>
             )
           })}
-          <Card className="p-3 xl:col-span-3">
-            <CardContent className="flex flex-col gap-2 p-0">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <CalendarDays className="h-4 w-4" />
-                </div>
-                <p className="text-sm text-black/90 font-semibold">นัดหมาย</p>
+          <Card className="p-4 xl:col-span-3">
+            <CardContent className="flex flex-col gap-5 p-0">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground font-medium">นัดหมาย</p>
               </div>
               {isAppointmentStatusLoading ? (
-                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-20 w-full" />
               ) : !isConnected || isAppointmentStatusError ? (
-                renderRetryAction(executeAppointmentStatus, appointmentStatusError)
+                <div className="flex items-center justify-center h-16">
+                  {renderRetryAction(executeAppointmentStatus, appointmentStatusError)}
+                </div>
               ) : (
-                <>
-                  <p className="text-base font-semibold text-black">
-                    ทั้งหมด {totalAppointmentsInRange.toLocaleString()} นัด
-                  </p>
-                  <p className="text-base font-semibold text-black">
-                    มารับบริการ {attendedAppointmentCount.toLocaleString()} ไม่มา {noShowAppointmentCount.toLocaleString()}
-                  </p>
-                </>
+                <div className="flex items-end justify-center gap-8">
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-2xl font-bold text-blue-600">{attendedAppointmentCount.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">มารับบริการ</p>
+                  </div>
+                  <div className="h-12 w-px bg-border" />
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-2xl font-bold text-red-600">{noShowAppointmentCount.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">ไม่มา</p>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
 
-          <Card className="p-3 xl:col-span-3">
-            <CardContent className="flex flex-col gap-2 p-0">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <ToothIcon className="h-4 w-4" />
-                </div>
-                <p className="text-sm text-black/90 font-semibold">ตรวจสุขภาพฟัน</p>
+          <Card className="p-4 xl:col-span-3">
+            <CardContent className="flex flex-col gap-5 p-0">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground font-medium">ตรวจสุขภาพฟัน</p>
               </div>
               {isOutServiceLoading ? (
-                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-20 w-full" />
               ) : !isConnected || isOutServiceError ? (
-                renderRetryAction(executeOutServiceCount, outServiceError)
+                <div className="flex items-center justify-center h-16">
+                  {renderRetryAction(executeOutServiceCount, outServiceError)}
+                </div>
               ) : (
-                <>
-                  <p className="text-sm font-semibold text-black">
-                    ในสถานบริการ {(outServiceCount?.inService ?? 0).toLocaleString()} ราย
-                  </p>
-                  <p className="text-sm font-semibold text-black">
-                    นอกสถานบริการ {(outServiceCount?.outService ?? 0).toLocaleString()} ราย
-                  </p>
-                </>
+                <div className="flex items-end justify-center gap-8">
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-2xl font-bold text-green-600">{(outServiceCount?.inService ?? 0).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">ในสถานบริการ</p>
+                  </div>
+                  <div className="h-12 w-px bg-border" />
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-2xl font-bold text-orange-600">{(outServiceCount?.outService ?? 0).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">นอกสถานบริการ</p>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -730,15 +801,16 @@ export default function Dentistry() {
                 renderRetryAction(executeDentService, dentServiceError)
               ) : dentalServiceChartData.length > 0 ? (
                 <div className="flex items-center gap-4">
-                  <div className="basis-3/5 min-w-0 overflow-hidden">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <PieChart>
+                  <div className="basis-3/5 min-w-0">
+                    <div className="mx-auto aspect-square w-full max-w-[240px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                         <Pie
                           data={dentalServiceChartData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
+                          innerRadius="42%"
+                          outerRadius="68%"
                           paddingAngle={2}
                           dataKey="value"
                           nameKey="name"
@@ -762,8 +834,9 @@ export default function Dentistry() {
                             )
                           }}
                         />
-                      </PieChart>
-                    </ResponsiveContainer>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                   <div className="basis-2/5 min-w-0">
                     <div className="flex flex-col gap-1 flex-1 min-w-0">
@@ -809,15 +882,16 @@ export default function Dentistry() {
                 renderRetryAction(execute, error)
               ) : insuranceChartData.length > 0 ? (
                 <div className="flex items-center gap-4">
-                  <div className="basis-3/5 min-w-0 overflow-hidden">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <PieChart>
+                  <div className="basis-3/5 min-w-0">
+                    <div className="mx-auto aspect-square w-full max-w-[240px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                         <Pie
                           data={insuranceChartData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
+                          innerRadius="42%"
+                          outerRadius="68%"
                           paddingAngle={2}
                           dataKey="value"
                           nameKey="name"
@@ -836,8 +910,9 @@ export default function Dentistry() {
                             fontSize: '12px',
                           }}
                         />
-                      </PieChart>
-                    </ResponsiveContainer>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
 
                   <div className="basis-2/5 min-w-0">
@@ -981,14 +1056,15 @@ export default function Dentistry() {
             ) : paymentExpenseChartData.length > 0 ? (
               <div className="flex items-center gap-4">
                 <div className="basis-3/5 min-w-0">
-                  <ResponsiveContainer width="100%" height={240}>
-                    <PieChart>
+                  <div className="mx-auto aspect-square w-full max-w-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                       <Pie
                         data={paymentExpenseChartData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={55}
-                        outerRadius={90}
+                        innerRadius="42%"
+                        outerRadius="70%"
                         paddingAngle={2}
                         dataKey="value"
                         nameKey="name"
@@ -1014,8 +1090,9 @@ export default function Dentistry() {
                           )
                         }}
                       />
-                    </PieChart>
-                  </ResponsiveContainer>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
                 <div className="basis-2/5 min-w-0">
                   <div className="flex flex-col gap-2">

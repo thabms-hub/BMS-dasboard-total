@@ -204,7 +204,7 @@ async function getDentistrySummaryMetrics(
   config: ConnectionConfig,
   startDate: string,
   endDate: string,
-): Promise<{ totalCases: number; totalVisits: number; totalIPDCases: number }> {
+): Promise<{ totalCases: number; totalVisits: number; totalIPDCases: number; yesterdayVisits: number; yesterdayIPDCases: number }> {
   const sql =
     `SELECT
       COUNT(*) AS total_cases,
@@ -214,16 +214,120 @@ async function getDentistrySummaryMetrics(
       LEFT OUTER JOIN ovst o ON o.vn = d1.vn
     WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'`;
 
-  const response = await executeSqlViaApi(sql, config);
-  const rows = parseQueryResponse(response, (row) => ({
-    totalCases: Number(row['total_cases'] ?? 0),
-    totalVisits: Number(row['total_visits'] ?? 0),
-    totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
-  }));
+  const yesterday = new Date(new Date().getTime() - 86400000);
+  const yesterdayDate = yesterday.toISOString().split('T')[0];
+  const yesterdaySql =
+    `SELECT
+      COUNT(DISTINCT CASE WHEN d1.an IS NULL OR d1.an = '' THEN d1.vn END) AS total_visits,
+      COUNT(CASE WHEN d1.an IS NOT NULL AND d1.an != '' THEN 1 END) AS total_ipd_cases
+    FROM dtmain d1
+      LEFT OUTER JOIN ovst o ON o.vn = d1.vn
+    WHERE d1.vstdate = '${yesterdayDate}'`;
 
-  return rows.length > 0
-    ? rows[0]
-    : { totalCases: 0, totalVisits: 0, totalIPDCases: 0 };
+  try {
+    const [todayResponse, yesterdayResponse] = await Promise.all([
+      executeSqlViaApi(sql, config),
+      executeSqlViaApi(yesterdaySql, config),
+    ]);
+
+    const todayRows = parseQueryResponse(todayResponse, (row) => ({
+      totalCases: Number(row['total_cases'] ?? 0),
+      totalVisits: Number(row['total_visits'] ?? 0),
+      totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
+    }));
+
+    const yesterdayRows = parseQueryResponse(yesterdayResponse, (row) => ({
+      totalVisits: Number(row['total_visits'] ?? 0),
+      totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
+    }));
+
+    const today = todayRows.length > 0 ? todayRows[0] : { totalCases: 0, totalVisits: 0, totalIPDCases: 0 };
+    const day = yesterdayRows.length > 0 ? yesterdayRows[0] : { totalVisits: 0, totalIPDCases: 0 };
+
+    return {
+      totalCases: today.totalCases,
+      totalVisits: today.totalVisits,
+      totalIPDCases: today.totalIPDCases,
+      yesterdayVisits: day.totalVisits,
+      yesterdayIPDCases: day.totalIPDCases,
+    };
+  } catch {
+    // Fallback if yesterday's data fails
+    const response = await executeSqlViaApi(sql, config);
+    const rows = parseQueryResponse(response, (row) => ({
+      totalCases: Number(row['total_cases'] ?? 0),
+      totalVisits: Number(row['total_visits'] ?? 0),
+      totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
+    }));
+
+    const today = rows.length > 0 ? rows[0] : { totalCases: 0, totalVisits: 0, totalIPDCases: 0 };
+    return {
+      ...today,
+      yesterdayVisits: 0,
+      yesterdayIPDCases: 0,
+    };
+  }
+}
+
+/**
+ * Get today's dentistry metrics (visit count, IPD count) for today only.
+ * Used for KPI cards that should not be affected by date range filter.
+ */
+export async function getTodayDentistryMetrics(
+  config: ConnectionConfig,
+): Promise<{ totalVisits: number; totalIPDCases: number; yesterdayVisits: number; yesterdayIPDCases: number }> {
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(new Date().getTime() - 86400000).toISOString().split('T')[0];
+
+  const todaySql =
+    `SELECT
+      COUNT(DISTINCT CASE WHEN d1.an IS NULL OR d1.an = '' THEN d1.vn END) AS total_visits,
+      COUNT(CASE WHEN d1.an IS NOT NULL AND d1.an != '' THEN 1 END) AS total_ipd_cases
+    FROM dtmain d1
+      LEFT OUTER JOIN ovst o ON o.vn = d1.vn
+    WHERE d1.vstdate = '${today}'`;
+
+  const yesterdaySql =
+    `SELECT
+      COUNT(DISTINCT CASE WHEN d1.an IS NULL OR d1.an = '' THEN d1.vn END) AS total_visits,
+      COUNT(CASE WHEN d1.an IS NOT NULL AND d1.an != '' THEN 1 END) AS total_ipd_cases
+    FROM dtmain d1
+      LEFT OUTER JOIN ovst o ON o.vn = d1.vn
+    WHERE d1.vstdate = '${yesterday}'`;
+
+  try {
+    const [todayResponse, yesterdayResponse] = await Promise.all([
+      executeSqlViaApi(todaySql, config),
+      executeSqlViaApi(yesterdaySql, config),
+    ]);
+
+    const todayRows = parseQueryResponse(todayResponse, (row) => ({
+      totalVisits: Number(row['total_visits'] ?? 0),
+      totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
+    }));
+
+    const yesterdayRows = parseQueryResponse(yesterdayResponse, (row) => ({
+      totalVisits: Number(row['total_visits'] ?? 0),
+      totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
+    }));
+
+    const todayData = todayRows.length > 0 ? todayRows[0] : { totalVisits: 0, totalIPDCases: 0 };
+    const yesterdayData = yesterdayRows.length > 0 ? yesterdayRows[0] : { totalVisits: 0, totalIPDCases: 0 };
+
+    return {
+      totalVisits: todayData.totalVisits,
+      totalIPDCases: todayData.totalIPDCases,
+      yesterdayVisits: yesterdayData.totalVisits,
+      yesterdayIPDCases: yesterdayData.totalIPDCases,
+    };
+  } catch {
+    return {
+      totalVisits: 0,
+      totalIPDCases: 0,
+      yesterdayVisits: 0,
+      yesterdayIPDCases: 0,
+    };
+  }
 }
 
 /**
@@ -246,6 +350,8 @@ export async function getDentistrySummary(
     totalCases: metrics.totalCases,
     totalVisits: metrics.totalVisits,
     totalIPDCases: metrics.totalIPDCases,
+    yesterdayVisits: metrics.yesterdayVisits,
+    yesterdayIPDCases: metrics.yesterdayIPDCases,
     casesByVisitType: visitTypeDistribution,
     casesByInsurance: insuranceDistribution,
     cases,

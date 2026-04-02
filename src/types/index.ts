@@ -280,6 +280,8 @@ export interface DentistrySummary {
   totalCases: number
   totalVisits: number
   totalIPDCases: number
+  yesterdayVisits: number
+  yesterdayIPDCases: number
   casesByVisitType: DentistryVisitTypeDistribution[]
   casesByInsurance: DentistryInsuranceDistribution[]
   cases: DentistryCase[]
@@ -306,6 +308,7 @@ export interface DentalServicePlaceCount {
 
 export interface ErDashboardKpis {
   todayCount: number
+  yesterdayCount: number
   monthCount: number
   activeTreatmentCount: number
 }
@@ -367,6 +370,7 @@ export interface ErAccidentTypeItem {
 }
 
 export interface ErTopProcedureItem {
+  operCode: string
   operName: string
   caseCount: number
 }
@@ -396,6 +400,9 @@ export interface ErCaseWithWaitTime {
   hn: string
   vn: string
   oqueue: string
+  enterErTime: string
+  doctorTxTime: string
+  finishTime: string
   waitBeforeDoctorMinutes: number
   doctorExamMinutes: number
   triageLevel: string
@@ -412,6 +419,12 @@ export interface AppointmentKpis {
   attendedToday: number
   noShowToday: number
   cancelledToday: number
+  noShowRate: number
+}
+
+export interface AppointmentDepartmentOption {
+  departmentCode: string
+  departmentName: string
 }
 
 export interface AppointmentClinicRateItem {
@@ -419,6 +432,7 @@ export interface AppointmentClinicRateItem {
   clinicName: string
   totalAppointments: number
   attendedAppointments: number
+  noShowAppointments: number
   attendanceRate: number
 }
 
@@ -438,4 +452,19 @@ export interface AppointmentTopDoctorItem {
   doctorCode: string
   doctorName: string
   totalAppointments: number
+}
+
+export interface AppointmentWalkInComparison {
+  bookedCount: number
+  walkInCount: number
+  bookedRate: number
+  walkInRate: number
+}
+
+export interface AppointmentTopClinicItem {
+  clinicCode: string
+  clinicName: string
+  totalAppointments: number
+  noShowAppointments: number
+  noShowRate: number
 }

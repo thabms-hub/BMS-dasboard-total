@@ -1,27 +1,29 @@
-import { useCallback, useMemo, useState } from 'react'
-import { CalendarCheck2, RefreshCw, AlertCircle, RotateCcw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarCheck2, RefreshCw, AlertCircle, RotateCcw, Check, ChevronDown } from 'lucide-react'
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
   Legend,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
 } from 'recharts'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
+  getAppointmentDepartments,
   getAppointmentKpis,
-  getAppointmentAttendanceByClinic,
   getAppointmentMonthlyTrend,
   getAppointmentCancelReasons,
+  getAppointmentTopClinics,
   getAppointmentTopDoctors,
+  getAppointmentWalkInComparison,
 } from '@/services/appointmentService'
 import { getDateRange } from '@/utils/dateUtils'
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
@@ -40,13 +42,13 @@ import {
 import { cn } from '@/lib/utils'
 import type {
   AppointmentCancelReasonItem,
-  AppointmentClinicRateItem,
+  AppointmentDepartmentOption,
   AppointmentKpis,
   AppointmentMonthlyTrendItem,
+  AppointmentTopClinicItem,
   AppointmentTopDoctorItem,
+  AppointmentWalkInComparison,
 } from '@/types'
-
-const CANCEL_REASON_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#0ea5e9', '#6366f1', '#a855f7', '#94a3b8']
 
 export default function Appointments() {
   const { connectionConfig, session } = useBmsSessionContext()
@@ -55,29 +57,52 @@ export default function Appointments() {
   const defaultRange = useMemo(() => getDateRange(30), [])
   const [startDate, setStartDate] = useState(defaultRange.startDate)
   const [endDate, setEndDate] = useState(defaultRange.endDate)
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([])
+  const [isClinicDropdownOpen, setIsClinicDropdownOpen] = useState(false)
+  const clinicDropdownRef = useRef<HTMLDivElement | null>(null)
 
   const isConnected = connectionConfig !== null && session !== null
 
-  const kpisFn = useCallback(
-    () => getAppointmentKpis(connectionConfig!, session!.databaseType),
-    [connectionConfig, session],
-  )
-  const clinicRateFn = useCallback(
-    () => getAppointmentAttendanceByClinic(connectionConfig!, session!.databaseType, startDate, endDate),
+  const departmentsFn = useCallback(
+    () => getAppointmentDepartments(connectionConfig!, session!.databaseType, startDate, endDate),
     [connectionConfig, session, startDate, endDate],
+  )
+
+  const kpisFn = useCallback(
+    () => getAppointmentKpis(connectionConfig!, session!.databaseType, selectedDepartments),
+    [connectionConfig, session, selectedDepartments],
   )
   const monthlyTrendFn = useCallback(
-    () => getAppointmentMonthlyTrend(connectionConfig!, session!.databaseType),
-    [connectionConfig, session],
+    () => getAppointmentMonthlyTrend(connectionConfig!, session!.databaseType, selectedDepartments),
+    [connectionConfig, session, selectedDepartments],
   )
   const cancelReasonsFn = useCallback(
-    () => getAppointmentCancelReasons(connectionConfig!, session!.databaseType, startDate, endDate),
-    [connectionConfig, session, startDate, endDate],
+    () => getAppointmentCancelReasons(connectionConfig!, session!.databaseType, startDate, endDate, selectedDepartments),
+    [connectionConfig, session, startDate, endDate, selectedDepartments],
   )
   const topDoctorsFn = useCallback(
-    () => getAppointmentTopDoctors(connectionConfig!, session!.databaseType, startDate, endDate),
-    [connectionConfig, session, startDate, endDate],
+    () => getAppointmentTopDoctors(connectionConfig!, session!.databaseType, startDate, endDate, selectedDepartments),
+    [connectionConfig, session, startDate, endDate, selectedDepartments],
   )
+  const walkInComparisonFn = useCallback(
+    () => getAppointmentWalkInComparison(connectionConfig!, session!.databaseType, startDate, endDate, selectedDepartments),
+    [connectionConfig, session, startDate, endDate, selectedDepartments],
+  )
+  const topClinicsFn = useCallback(
+    () => getAppointmentTopClinics(connectionConfig!, session!.databaseType, startDate, endDate, selectedDepartments),
+    [connectionConfig, session, startDate, endDate, selectedDepartments],
+  )
+
+  const {
+    data: departmentOptions,
+    isLoading: isDepartmentOptionsLoading,
+    isError: isDepartmentOptionsError,
+    error: departmentOptionsError,
+    execute: executeDepartmentOptions,
+  } = useQuery<AppointmentDepartmentOption[]>({
+    queryFn: departmentsFn,
+    enabled: isConnected,
+  })
 
   const {
     data: kpis,
@@ -87,17 +112,6 @@ export default function Appointments() {
     execute: executeKpis,
   } = useQuery<AppointmentKpis>({
     queryFn: kpisFn,
-    enabled: isConnected,
-  })
-
-  const {
-    data: clinicRates,
-    isLoading: isClinicRatesLoading,
-    isError: isClinicRatesError,
-    error: clinicRatesError,
-    execute: executeClinicRates,
-  } = useQuery<AppointmentClinicRateItem[]>({
-    queryFn: clinicRateFn,
     enabled: isConnected,
   })
 
@@ -134,6 +148,76 @@ export default function Appointments() {
     enabled: isConnected,
   })
 
+  const {
+    data: walkInComparison,
+    isLoading: isWalkInComparisonLoading,
+    isError: isWalkInComparisonError,
+    error: walkInComparisonError,
+    execute: executeWalkInComparison,
+  } = useQuery<AppointmentWalkInComparison>({
+    queryFn: walkInComparisonFn,
+    enabled: isConnected,
+  })
+
+  const {
+    data: topClinics,
+    isLoading: isTopClinicsLoading,
+    isError: isTopClinicsError,
+    error: topClinicsError,
+    execute: executeTopClinics,
+  } = useQuery<AppointmentTopClinicItem[]>({
+    queryFn: topClinicsFn,
+    enabled: isConnected,
+  })
+
+  useEffect(() => {
+    const optionCodes = new Set((departmentOptions ?? []).map((item) => item.departmentCode))
+    setSelectedDepartments((prev) => prev.filter((code) => optionCodes.has(code)))
+  }, [departmentOptions])
+
+  useEffect(() => {
+    if (!isClinicDropdownOpen) {
+      return
+    }
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (clinicDropdownRef.current && !clinicDropdownRef.current.contains(event.target as Node)) {
+        setIsClinicDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [isClinicDropdownOpen])
+
+  const selectedDepartmentLabel = useMemo(() => {
+    if (selectedDepartments.length === 0) {
+      return 'ทุกคลินิก'
+    }
+
+    const selectedNames = (departmentOptions ?? [])
+      .filter((item) => selectedDepartments.includes(item.departmentCode))
+      .map((item) => item.departmentName)
+
+    if (selectedNames.length <= 2) {
+      return selectedNames.join(', ')
+    }
+
+    return `${selectedNames.slice(0, 2).join(', ')} +${selectedNames.length - 2} คลินิก`
+  }, [departmentOptions, selectedDepartments])
+
+  const handleToggleClinic = useCallback((code: string) => {
+    setSelectedDepartments((prev) => (
+      prev.includes(code)
+        ? prev.filter((item) => item !== code)
+        : [...prev, code]
+    ))
+  }, [])
+
+  const walkInTotal = (walkInComparison?.bookedCount ?? 0) + (walkInComparison?.walkInCount ?? 0)
+
   const handleRangeChange = useCallback((newStartDate: string, newEndDate: string) => {
     setStartDate(newStartDate)
     setEndDate(newEndDate)
@@ -143,16 +227,18 @@ export default function Appointments() {
     setIsRefreshing(true)
     try {
       await Promise.all([
+        executeDepartmentOptions(),
         executeKpis(),
-        executeClinicRates(),
         executeMonthlyTrend(),
         executeCancelReasons(),
         executeTopDoctors(),
+        executeWalkInComparison(),
+        executeTopClinics(),
       ])
     } finally {
       setTimeout(() => setIsRefreshing(false), 600)
     }
-  }, [executeKpis, executeClinicRates, executeMonthlyTrend, executeCancelReasons, executeTopDoctors])
+  }, [executeDepartmentOptions, executeKpis, executeMonthlyTrend, executeCancelReasons, executeTopDoctors, executeWalkInComparison, executeTopClinics])
 
   const getCardErrorMessage = useCallback(
     (error: Error | null) => {
@@ -203,12 +289,84 @@ export default function Appointments() {
         </Button>
       </div>
 
-      <DateRangePicker
-        startDate={startDate}
-        endDate={endDate}
-        onRangeChange={handleRangeChange}
-        isLoading={isClinicRatesLoading || isCancelReasonsLoading || isTopDoctorsLoading}
-      />
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+        <div className="min-w-0 flex-1">
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onRangeChange={handleRangeChange}
+            isLoading={isCancelReasonsLoading || isTopDoctorsLoading || isDepartmentOptionsLoading}
+          />
+        </div>
+        <div className="w-full xl:w-80">
+          <label className="mb-2 block text-sm font-medium text-foreground">คลินิก</label>
+          {isDepartmentOptionsLoading ? (
+            <Skeleton className="h-10 w-full" />
+          ) : !isConnected || isDepartmentOptionsError ? (
+            <div className="rounded-md border border-dashed border-destructive/40 p-3">
+              {renderRetryAction(executeDepartmentOptions, departmentOptionsError)}
+            </div>
+          ) : (
+            <div className="relative" ref={clinicDropdownRef}>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 w-full justify-between"
+                onClick={() => setIsClinicDropdownOpen((prev) => !prev)}
+              >
+                <span className="truncate text-left">{selectedDepartmentLabel}</span>
+                <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', isClinicDropdownOpen && 'rotate-180')} />
+              </Button>
+
+              {isClinicDropdownOpen && (
+                <div className="absolute z-20 mt-2 w-full rounded-md border bg-popover p-2 shadow-md">
+                  <div className="mb-2 flex items-center justify-between gap-2 border-b pb-2">
+                    <button
+                      type="button"
+                      className="text-xs text-sky-600 hover:underline"
+                      onClick={() => setSelectedDepartments((departmentOptions ?? []).map((item) => item.departmentCode))}
+                    >
+                      เลือกทั้งหมด
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:underline"
+                      onClick={() => setSelectedDepartments([])}
+                    >
+                      ล้างการเลือก
+                    </button>
+                  </div>
+
+                  <div className="max-h-56 space-y-1 overflow-y-auto">
+                    {(departmentOptions ?? []).map((item) => {
+                      const checked = selectedDepartments.includes(item.departmentCode)
+                      return (
+                        <label
+                          key={item.departmentCode}
+                          className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handleToggleClinic(item.departmentCode)}
+                            className="sr-only"
+                          />
+                          <span className={cn('inline-flex h-4 w-4 items-center justify-center rounded border', checked && 'border-sky-600 bg-sky-600')}>
+                            {checked && <Check className="h-3 w-3 text-white" />}
+                          </span>
+                          <span className="truncate">{item.departmentName}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+           
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
@@ -236,6 +394,13 @@ export default function Appointments() {
             <CardTitle className="text-3xl text-amber-600">
               {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.noShowToday ?? 0).toLocaleString()}
             </CardTitle>
+            <CardDescription className="text-xs">
+              {isKpisLoading
+                ? 'กำลังคำนวณ...'
+                : !isConnected || isKpisError
+                  ? 'ไม่สามารถคำนวณอัตราได้'
+                  : `คิดเป็น ${kpis?.noShowRate.toFixed(1) ?? '0.0'}% ของนัดที่ยังไม่ยกเลิกวันนี้`}
+            </CardDescription>
           </CardHeader>
         </Card>
 
@@ -255,64 +420,77 @@ export default function Appointments() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-7">
+        <Card className="xl:col-span-6">
           <CardHeader>
-            <CardTitle>อัตรามาตามนัดแยกรายคลินิก</CardTitle>
-            <CardDescription>เปอร์เซ็นต์จากจำนวนที่มาตามนัดเทียบกับนัดทั้งหมด</CardDescription>
+            <CardTitle>ผู้รับบริการ Walk-in เทียบกับผู้ที่นัดมา</CardTitle>
+            <CardDescription>สัดส่วนผู้มารับบริการจริงในช่วงวันที่เลือก ({selectedDepartmentLabel})</CardDescription>
           </CardHeader>
-          <CardContent className="h-80">
-            {isClinicRatesLoading ? (
-              <Skeleton className="h-full w-full" />
-            ) : !isConnected || isClinicRatesError ? (
-              renderRetryAction(executeClinicRates, clinicRatesError)
-            ) : (clinicRates?.length ?? 0) > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={clinicRates ?? []} layout="vertical" margin={{ top: 8, right: 16, left: 110, bottom: 8 }}>
-                  <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                  <YAxis dataKey="clinicName" type="category" width={100} tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    cursor={false}
-                    formatter={((value: unknown, name: string) => {
-                      if (name === 'อัตรามาตามนัด') {
-                        return [`${Number(value).toFixed(1)}%`, name]
-                      }
-                      return [Number(value).toLocaleString(), name]
-                    }) as never}
-                  />
-                  <Legend />
-                  <Bar dataKey="attendanceRate" name="อัตรามาตามนัด" fill="#0ea5e9" radius={[0, 6, 6, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          <CardContent>
+            {isWalkInComparisonLoading ? (
+              <Skeleton className="h-56 w-full" />
+            ) : !isConnected || isWalkInComparisonError ? (
+              renderRetryAction(executeWalkInComparison, walkInComparisonError)
+            ) : walkInTotal > 0 ? (
+              <div className="space-y-5">
+                <div className="overflow-hidden rounded-full bg-muted">
+                  <div className="flex h-4 w-full">
+                    <div className="bg-sky-500" style={{ width: `${walkInComparison?.bookedRate ?? 0}%` }} />
+                    <div className="bg-amber-500" style={{ width: `${walkInComparison?.walkInRate ?? 0}%` }} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border bg-sky-50/70 p-4 dark:bg-sky-950/20">
+                    <p className="text-sm text-muted-foreground">นัดล่วงหน้า</p>
+                    <p className="mt-1 text-2xl font-semibold text-sky-700 dark:text-sky-300">{(walkInComparison?.bookedCount ?? 0).toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">{(walkInComparison?.bookedRate ?? 0).toFixed(1)}%</p>
+                  </div>
+                  <div className="rounded-lg border bg-amber-50/70 p-4 dark:bg-amber-950/20">
+                    <p className="text-sm text-muted-foreground">ไม่ได้นัดล่วงหน้า</p>
+                    <p className="mt-1 text-2xl font-semibold text-amber-700 dark:text-amber-300">{(walkInComparison?.walkInCount ?? 0).toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">{(walkInComparison?.walkInRate ?? 0).toFixed(1)}%</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">รวมผู้รับบริการ {walkInTotal.toLocaleString()} ครั้งในช่วงวันที่เลือก</p>
+              </div>
             ) : (
-              <EmptyState title="ไม่พบข้อมูลคลินิก" description="ยังไม่มีข้อมูลนัดในช่วงวันที่ที่เลือก" />
+              <EmptyState title="ไม่พบข้อมูลผู้รับบริการ" description="ยังไม่มีข้อมูล walk-in หรือผู้ที่นัดมาในช่วงวันที่ที่เลือก" />
             )}
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-5">
+        <Card className="xl:col-span-6">
           <CardHeader>
             <CardTitle>สรุปสาเหตุการยกเลิกนัด</CardTitle>
-            <CardDescription>สรุปจากข้อมูลนัดที่สถานะยกเลิก</CardDescription>
+            <CardDescription>แสดงความถี่เหตุผลยกเลิกนัดในรูปแบบ Radar Chart</CardDescription>
           </CardHeader>
-          <CardContent className="h-80">
+          <CardContent className="h-56">
             {isCancelReasonsLoading ? (
               <Skeleton className="h-full w-full" />
             ) : !isConnected || isCancelReasonsError ? (
               renderRetryAction(executeCancelReasons, cancelReasonsError)
             ) : (cancelReasons?.length ?? 0) > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={cancelReasons ?? []} dataKey="cancelledCount" nameKey="reason" innerRadius={60} outerRadius={105}>
-                    {(cancelReasons ?? []).map((entry, index) => (
-                      <Cell key={`${entry.reason}-${index}`} fill={CANCEL_REASON_COLORS[index % CANCEL_REASON_COLORS.length]} />
-                    ))}
-                  </Pie>
+                <RadarChart data={cancelReasons ?? []} outerRadius="72%">
+                  <PolarGrid stroke="hsl(var(--border))" />
+                  <PolarAngleAxis
+                    dataKey="reason"
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(value) => String(value).slice(0, 24)}
+                  />
+                  <PolarRadiusAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
                   <Tooltip
                     cursor={false}
-                    formatter={((value: unknown) => [Number(value).toLocaleString(), 'จำนวน']) as never}
+                    formatter={((value: unknown) => [Number(value).toLocaleString(), 'จำนวนครั้ง']) as never}
                   />
-                  <Legend verticalAlign="bottom" />
-                </PieChart>
+                  <Legend />
+                  <Radar
+                    name="จำนวนการยกเลิก"
+                    dataKey="cancelledCount"
+                    stroke="hsl(var(--destructive))"
+                    fill="hsl(var(--destructive))"
+                    fillOpacity={0.35}
+                  />
+                </RadarChart>
               </ResponsiveContainer>
             ) : (
               <EmptyState title="ไม่พบข้อมูลการยกเลิกนัด" description="ยังไม่มีเคสยกเลิกในช่วงวันที่ที่เลือก" />
@@ -322,7 +500,7 @@ export default function Appointments() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-7">
+        <Card className="xl:col-span-12">
           <CardHeader>
             <CardTitle>แนวโน้มการนัดหมายรายเดือน</CardTitle>
             <CardDescription>ย้อนหลัง 12 เดือน</CardDescription>
@@ -334,37 +512,53 @@ export default function Appointments() {
               renderRetryAction(executeMonthlyTrend, monthlyTrendError)
             ) : (monthlyTrend?.length ?? 0) > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyTrend ?? []}>
+                <AreaChart data={monthlyTrend ?? []}>
+                  <defs>
+                    <linearGradient id="appointment-total-gradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
+                    </linearGradient>
+                    <linearGradient id="appointment-cancelled-gradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0.1} />
+                    </linearGradient>
+                    <linearGradient id="appointment-noshow-gradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity={0.1} />
+                    </linearGradient>
+                  </defs>
                   <XAxis dataKey="month" />
                   <YAxis allowDecimals={false} />
-                  <Tooltip cursor={false} formatter={((value: unknown) => [Number(value).toLocaleString(), 'นัด']) as never} />
+                  <Tooltip
+                    cursor={false}
+                    formatter={((value: unknown, name: string) => [Number(value).toLocaleString(), name]) as never}
+                  />
                   <Legend />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="totalAppointments"
                     name="จำนวนการนัด"
-                    stroke="#0284c7"
+                    stroke="hsl(var(--primary))"
                     strokeWidth={3}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
+                    fill="url(#appointment-total-gradient)"
                   />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="cancelledAppointments"
                     name="ยกเลิกนัด"
-                    stroke="#e11d48"
+                    stroke="hsl(var(--destructive))"
                     strokeWidth={2}
-                    dot={{ r: 2 }}
+                    fill="url(#appointment-cancelled-gradient)"
                   />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="noShowAppointments"
                     name="ไม่มาตามนัด"
-                    stroke="#f59e0b"
+                    stroke="hsl(var(--accent))"
                     strokeWidth={2}
-                    dot={{ r: 2 }}
+                    fill="url(#appointment-noshow-gradient)"
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
               <EmptyState title="ไม่พบข้อมูลแนวโน้มการนัดหมาย" description="ยังไม่มีข้อมูลนัดย้อนหลัง 12 เดือน" />
@@ -372,7 +566,49 @@ export default function Appointments() {
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-5">
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <Card className="xl:col-span-6">
+          <CardHeader>
+            <CardTitle>คลินิกที่มีการนัดหมายสูงสุด</CardTitle>
+            <CardDescription>จัดอันดับตามจำนวนผู้ป่วยนัด พร้อมสัดส่วนผู้ไม่มาตามนัด ({selectedDepartmentLabel})</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isTopClinicsLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : !isConnected || isTopClinicsError ? (
+              renderRetryAction(executeTopClinics, topClinicsError)
+            ) : (topClinics?.length ?? 0) > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">อันดับ</TableHead>
+                    <TableHead>คลินิก</TableHead>
+                    <TableHead className="text-right">นัด</TableHead>
+                    <TableHead className="text-right">ไม่มา</TableHead>
+                    <TableHead className="text-right">% ไม่มา</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(topClinics ?? []).map((item, index) => (
+                    <TableRow key={`${item.clinicCode}-${index}`}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className="font-medium">{item.clinicName}</TableCell>
+                      <TableCell className="text-right">{item.totalAppointments.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{item.noShowAppointments.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-medium text-amber-600">{item.noShowRate.toFixed(1)}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <EmptyState title="ไม่พบข้อมูลคลินิกนัดหมาย" description="ยังไม่มีข้อมูลการนัดในช่วงวันที่ที่เลือก" />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="xl:col-span-6">
           <CardHeader>
             <CardTitle>Top 10 แพทย์ที่มีนัดมากที่สุด</CardTitle>
             <CardDescription>เรียงตามจำนวนนัดในช่วงวันที่ที่เลือก</CardDescription>
@@ -395,12 +631,7 @@ export default function Appointments() {
                   {(topDoctors ?? []).map((item, index) => (
                     <TableRow key={`${item.doctorCode}-${index}`}>
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{item.doctorName}</span>
-                          <span className="text-xs text-muted-foreground">รหัส: {item.doctorCode}</span>
-                        </div>
-                      </TableCell>
+                      <TableCell className="font-medium">{item.doctorName}</TableCell>
                       <TableCell className="text-right">{item.totalAppointments.toLocaleString()}</TableCell>
                     </TableRow>
                   ))}

@@ -56,20 +56,25 @@ export async function getErDashboardKpis(
   const totalTodaySql = `SELECT COUNT(*) as total FROM er_regist WHERE vstdate = ${todayExpr}`
   const totalMonthSql = `SELECT COUNT(*) as total FROM er_regist WHERE vstdate >= ${monthStart} AND vstdate <= ${todayExpr}`
 
+  const yesterdayExpr = queryBuilder.dateSubtract(dbType, 1)
+  const totalYesterdaySql = `SELECT COUNT(*) as total FROM er_regist WHERE vstdate = ${yesterdayExpr}`
+
   const activeTreatmentSql =
     `SELECT COUNT(DISTINCT er.vn) as total ` +
     `FROM er_regist er ` +
     `WHERE er.vstdate = ${todayExpr} ` +
     `AND (${leaveStatusExpr} = '' OR ${leaveStatusExpr} = '0')`
 
-  const [todayCount, monthCount, activeTreatmentCount] = await Promise.all([
+  const [todayCount, yesterdayCount, monthCount, activeTreatmentCount] = await Promise.all([
     safeCount(totalTodaySql, config),
+    safeCount(totalYesterdaySql, config),
     safeCount(totalMonthSql, config),
     safeCount(activeTreatmentSql, config),
   ])
 
   return {
     todayCount,
+    yesterdayCount,
     monthCount,
     activeTreatmentCount,
   }
@@ -271,18 +276,20 @@ export async function getErTopProcedures(
 ): Promise<ErTopProcedureItem[]> {
   const sql =
     `SELECT ` +
-    `COALESCE(e.NAME, 'ไม่ระบุหัตถการ') AS oper_name, ` +
+    `d.er_oper_code AS oper_code, ` +
+    `COALESCE(e.name, 'ไม่ระบุหัตถการ') AS oper_name, ` +
     `COUNT(*) AS case_count ` +
     `FROM er_regist er ` +
     `INNER JOIN doctor_operation d ON d.vn = er.vn ` +
     `LEFT OUTER JOIN er_oper_code e ON e.er_oper_code = d.er_oper_code ` +
     `WHERE er.vstdate >= '${startDate}' AND er.vstdate <= '${endDate}' ` +
-    `GROUP BY COALESCE(e.NAME, 'ไม่ระบุหัตถการ') ` +
+    `GROUP BY d.er_oper_code, COALESCE(e.name, 'ไม่ระบุหัตถการ') ` +
     `ORDER BY case_count DESC ` +
     `LIMIT 10`
 
   const response = await executeSqlViaApi(sql, config)
   return parseQueryResponse(response, (row) => ({
+    operCode: String(row['oper_code'] ?? '-'),
     operName: String(row['oper_name'] ?? 'ไม่ระบุหัตถการ'),
     caseCount: Number(row['case_count'] ?? 0),
   }))
@@ -533,6 +540,9 @@ export async function getErCasesWithWaitTimes(
     `o.hn, ` +
     `er.vn, ` +
     `COALESCE(${queryBuilder.castToText(dbType, 'o.oqueue')}, '') as oqueue, ` +
+    `COALESCE(${queryBuilder.castToText(dbType, 'er.enter_er_time')}, '-') as enter_er_time, ` +
+    `COALESCE(${queryBuilder.castToText(dbType, 'er.doctor_tx_time')}, '-') as doctor_tx_time, ` +
+    `COALESCE(${queryBuilder.castToText(dbType, 'er.finish_time')}, '-') as finish_time, ` +
     `${waitBeforeDoctorExpr} as wait_before_doctor, ` +
     `${doctorExamExpr} as doctor_exam, ` +
     `COALESCE(et.name, 'ไม่ระบุ') as triage_level ` +
@@ -550,6 +560,9 @@ export async function getErCasesWithWaitTimes(
     hn: String(row['hn'] ?? ''),
     vn: String(row['vn'] ?? ''),
     oqueue: String(row['oqueue'] ?? ''),
+    enterErTime: String(row['enter_er_time'] ?? '-'),
+    doctorTxTime: String(row['doctor_tx_time'] ?? '-'),
+    finishTime: String(row['finish_time'] ?? '-'),
     waitBeforeDoctorMinutes: Number(row['wait_before_doctor'] ?? 0),
     doctorExamMinutes: Number(row['doctor_exam'] ?? 0),
     triageLevel: String(row['triage_level'] ?? 'ไม่ระบุ'),

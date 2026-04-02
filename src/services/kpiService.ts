@@ -1086,10 +1086,11 @@ export async function getMedicationCostSummary(
 ): Promise<{ totalItems: number; totalCost: number; uniqueDrugs: number }> {
   const sql =
     `SELECT COUNT(*) as total_items, ` +
-    `COALESCE(SUM(qty * unitprice), 0) as total_cost, ` +
-    `COUNT(DISTINCT icode) as unique_drugs ` +
-    `FROM opitemrece ` +
-    `WHERE vstdate >= '${startDate}' AND vstdate <= '${endDate}'`;
+    `COALESCE(SUM(op.qty * op.unitprice), 0) as total_cost, ` +
+    `COUNT(DISTINCT op.icode) as unique_drugs ` +
+    `FROM opitemrece op ` +
+    `INNER JOIN drugitems d ON d.icode = op.icode ` +
+    `WHERE op.vstdate >= '${startDate}' AND op.vstdate <= '${endDate}'`;
   const response = await executeSqlViaApi(sql, config);
   const rows = parseQueryResponse(response, (row) => ({
     totalItems: Number(row['total_items'] ?? 0),
@@ -1097,6 +1098,28 @@ export async function getMedicationCostSummary(
     uniqueDrugs: Number(row['unique_drugs'] ?? 0),
   }));
   return rows[0] ?? { totalItems: 0, totalCost: 0, uniqueDrugs: 0 };
+}
+
+/**
+ * Total patient expense summary (all billing items in opitemrece) for a date range.
+ */
+export async function getPatientExpenseSummary(
+  config: ConnectionConfig,
+  _dbType: DatabaseType,
+  startDate: string,
+  endDate: string,
+): Promise<{ totalExpense: number; totalPatients: number }> {
+  const sql =
+    `SELECT COALESCE(SUM(qty * unitprice), 0) as total_expense, ` +
+    `COUNT(DISTINCT vn) as total_patients ` +
+    `FROM opitemrece ` +
+    `WHERE vstdate >= '${startDate}' AND vstdate <= '${endDate}'`;
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => ({
+    totalExpense: Number(row['total_expense'] ?? 0),
+    totalPatients: Number(row['total_patients'] ?? 0),
+  }));
+  return rows[0] ?? { totalExpense: 0, totalPatients: 0 };
 }
 
 /**

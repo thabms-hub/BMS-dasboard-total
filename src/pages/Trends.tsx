@@ -18,7 +18,7 @@ import {
   getTopMedications,
   getMedicationCostSummary,
   getDeathSummary,
-  getDiagnosisSummary,
+  getPatientExpenseSummary,
 } from '@/services/kpiService'
 import type { VisitTrend, HourlyDistribution, DepartmentWorkload } from '@/types'
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
@@ -31,13 +31,13 @@ import {
   TrendingUp,
   BarChart3,
   ArrowUp,
-  CalendarCheck,
+  ArrowDown,
   Pill,
   Banknote,
   Package,
-  Stethoscope,
   HeartPulse,
   FileText,
+  Receipt,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { th } from 'date-fns/locale'
@@ -66,6 +66,26 @@ function formatDateLabel(dateStr: string): string {
   } catch {
     return dateStr
   }
+}
+
+function formatLargeNumber(value: number): string {
+  if (value >= 100_000_000) {
+    return `${(value / 1_000_000).toFixed(0)}M`
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`
+  }
+  return value.toLocaleString()
+}
+
+const iconColorMap: Record<string, string> = {
+  blue:   'bg-blue-200 text-blue-700 dark:bg-blue-600/40 dark:text-blue-300',
+  green:  'bg-green-200 text-green-700 dark:bg-green-600/40 dark:text-green-300',
+  red:    'bg-red-200 text-red-700 dark:bg-red-600/40 dark:text-red-300',
+  amber:  'bg-amber-200 text-amber-700 dark:bg-amber-600/40 dark:text-amber-300',
+  purple: 'bg-purple-200 text-purple-700 dark:bg-purple-600/40 dark:text-purple-300',
+  teal:   'bg-teal-200 text-teal-700 dark:bg-teal-600/40 dark:text-teal-300',
+  orange: 'bg-orange-200 text-orange-700 dark:bg-orange-600/40 dark:text-orange-300',
 }
 
 export default function Trends() {
@@ -132,13 +152,20 @@ export default function Trends() {
       enabled: isReady,
     })
 
-  const { data: diagSummary, isLoading: isDiagSummaryLoading } =
-    useQuery<{ totalDiagnoses: number; uniqueCodes: number }>({
-      queryFn: useCallback(() => getDiagnosisSummary(connectionConfig!, session!.databaseType, startDate, endDate), [connectionConfig, session, startDate, endDate]),
+
+  const { data: patientExpense, isLoading: isPatientExpenseLoading } =
+    useQuery<{ totalExpense: number; totalPatients: number }>({
+      queryFn: useCallback(() => getPatientExpenseSummary(connectionConfig!, session!.databaseType, startDate, endDate), [connectionConfig, session, startDate, endDate]),
       enabled: isReady,
     })
 
   const trendSummary = useMemo(() => computeTrendSummary(dailyData ?? []), [dailyData])
+
+  const minDay = useMemo(() => {
+    const days = (dailyData ?? []).filter(d => d.visitCount > 0)
+    if (days.length === 0) return null
+    return days.reduce((min, d) => d.visitCount < min.visitCount ? d : min)
+  }, [dailyData])
 
   const handleRangeChange = useCallback((newStart: string, newEnd: string) => {
     setRange(newStart, newEnd)
@@ -179,27 +206,29 @@ export default function Trends() {
       )}
 
       {/* 2. Summary Cards — expanded from 4 to 6 */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { label: 'จำนวนการเข้ารับบริการทั้งหมด', value: trendSummary.totalVisits, icon: TrendingUp, color: 'blue', loading: isDailyLoading },
-          { label: 'เฉลี่ยต่อวัน', value: trendSummary.avgDailyVisits, icon: BarChart3, color: 'green', loading: isDailyLoading },
-          { label: 'วันที่มีผู้เข้ารับบริการมากที่สุด', value: trendSummary.peakDay?.count ?? 0, sub: trendSummary.peakDay?.date, icon: ArrowUp, color: 'amber', loading: isDailyLoading },
-          { label: 'จำนวนวันที่มีบริการ', value: `${trendSummary.daysWithVisits} / ${trendSummary.totalDays}`, icon: CalendarCheck, color: 'purple', loading: isDailyLoading },
-          { label: 'จำนวนการวินิจฉัย', value: diagSummary?.totalDiagnoses ?? 0, sub: `${diagSummary?.uniqueCodes ?? 0} รหัส ICD10`, icon: Stethoscope, color: 'teal', loading: isDiagSummaryLoading },
-          { label: 'ค่ายาทั้งหมด', value: `฿${(medCostSummary?.totalCost ?? 0).toLocaleString()}`, icon: Banknote, color: 'orange', loading: isMedCostLoading },
+          { label: 'จำนวนการเข้ารับบริการทั้งหมด', desc: `จำนวนวันที่เลือก ${trendSummary.totalDays} วัน`, value: trendSummary.totalVisits, icon: TrendingUp, color: 'blue', loading: isDailyLoading },
+          { label: 'เฉลี่ยต่อวัน', desc: `จำนวน ${trendSummary.totalVisits.toLocaleString()} ราย / ${trendSummary.daysWithVisits} วัน`, value: trendSummary.avgDailyVisits, icon: BarChart3, color: 'green', loading: isDailyLoading },
+          { label: 'วันที่มีผู้เข้ารับบริการมากที่สุด', desc: trendSummary.peakDay?.date ? format(parseISO(trendSummary.peakDay.date), 'd MMM yyyy', { locale: th }) : '-', value: trendSummary.peakDay?.count ?? 0, icon: ArrowUp, color: 'red', loading: isDailyLoading },
+          { label: 'วันที่มีผู้เข้ารับบริการน้อยที่สุด', desc: minDay?.date ? format(parseISO(minDay.date), 'd MMM yyyy', { locale: th }) : '-', value: minDay?.visitCount ?? 0, icon: ArrowDown, color: 'purple', loading: isDailyLoading },
+          { label: 'ค่าใช้จ่ายผู้ป่วยทั้งหมด', desc: '', value: `฿${formatLargeNumber(patientExpense?.totalExpense ?? 0)}`, icon: Receipt, color: 'teal', loading: isPatientExpenseLoading },
+          { label: 'ค่ายาทั้งหมด', desc: '', value: `฿${formatLargeNumber(medCostSummary?.totalCost ?? 0)}`, icon: Banknote, color: 'orange', loading: isMedCostLoading },
         ].map((card) => (
-          <Card key={card.label} className="card-shadow-hover p-4">
-            <CardContent className="p-0 flex items-center gap-3">
-              {card.loading ? <Skeleton className="h-16 w-full" /> : (
+          <Card key={card.label} className="card-shadow-hover px-4 pt-3 pb-4">
+            <CardContent className="p-0 flex flex-col gap-2">
+              {card.loading ? <Skeleton className="h-20 w-full" /> : (
                 <>
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-${card.color}-100 text-${card.color}-600 dark:bg-${card.color}-900/30 dark:text-${card.color}-400`}>
-                    <card.icon className="h-5 w-5" />
+                  <div className="flex items-center gap-2">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconColorMap[card.color]}`}>
+                      <card.icon className="h-4 w-4" />
+                    </div>
+                    <p className="text-xs font-medium text-muted-foreground leading-snug">{card.label}</p>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground truncate">{card.label}</p>
-                    <p className="text-xl font-bold">{typeof card.value === 'number' ? card.value.toLocaleString() : card.value}</p>
-                    {card.sub && <p className="text-xs text-muted-foreground">{card.sub}</p>}
+                  <div className="flex items-center justify-center py-1">
+                    <p className="text-3xl font-bold text-foreground">{typeof card.value === 'number' ? formatLargeNumber(card.value) : card.value}</p>
                   </div>
+                  {card.desc && <p className="text-xs text-muted-foreground text-center">{card.desc}</p>}
                 </>
               )}
             </CardContent>
@@ -345,7 +374,7 @@ export default function Trends() {
             },
             {
               label: 'ค่ายาทั้งหมด',
-              value: `฿${(medCostSummary?.totalCost ?? 0).toLocaleString()} บาท`,
+              value: `฿${formatLargeNumber(medCostSummary?.totalCost ?? 0)}`,
               icon: Banknote,
               color: 'orange',
             },

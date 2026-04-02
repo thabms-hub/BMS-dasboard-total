@@ -22,10 +22,11 @@ function bmsCorsProxyPlugin(): Plugin {
   return {
     name: 'bms-cors-proxy',
     apply: 'serve',
-    configureServer() {
+    configureServer(server) {
       const PROXY_PORT = 3001
 
-      const server = http.createServer((req, res) => {
+      // Start the actual proxy server on port 3001
+      const proxyServer = http.createServer((req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*')
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-target-url')
@@ -71,9 +72,36 @@ function bmsCorsProxyPlugin(): Plugin {
         req.pipe(proxyReq)
       })
 
-      server.listen(PROXY_PORT, () => {
+      proxyServer.listen(PROXY_PORT, () => {
         console.log(`\x1b[36m[bms-proxy]\x1b[0m CORS proxy → http://localhost:${PROXY_PORT}`)
       })
+
+      // Add middleware to Vite's dev server to forward /bms-proxy requests to port 3001
+      return () => {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.startsWith('/bms-proxy') && req.method === 'POST') {
+            const proxyReq = http.request({
+              hostname: 'localhost',
+              port: PROXY_PORT,
+              path: req.url,
+              method: req.method,
+              headers: req.headers,
+            }, (proxyRes) => {
+              res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers)
+              proxyRes.pipe(res)
+            })
+
+            proxyReq.on('error', (err) => {
+              res.writeHead(502, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: err.message }))
+            })
+
+            req.pipe(proxyReq)
+          } else {
+            next()
+          }
+        })
+      }
     },
   }
 }

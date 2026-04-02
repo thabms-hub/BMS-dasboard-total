@@ -16,7 +16,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   PieChart,
   Pie,
   Cell,
@@ -64,6 +63,11 @@ export default function Dentistry() {
   const [currentPage, setCurrentPage] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+
+  // Chart visibility state for doctor performance chart
+  const [visibleSeries, setVisibleSeries] = useState<Set<string>>(
+    new Set(['c_vn', 'c_dtmain', 'sum_price'])
+  )
 
   // Chart container refs for export
   const barChartContainerRef = useRef<HTMLDivElement>(null)
@@ -197,6 +201,61 @@ export default function Dentistry() {
     executeOutServiceCount,
     executeExpenseByPayment,
   ])
+
+  // Handle legend click to toggle visibility
+  const handleLegendClick = useCallback((e: any) => {
+    const dataKey = e.dataKey
+    setVisibleSeries((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(dataKey)) {
+        newSet.delete(dataKey)
+      } else {
+        newSet.add(dataKey)
+      }
+      return newSet
+    })
+  }, [])
+
+  // Custom legend renderer for doctor performance chart
+  const renderCustomLegend = useCallback((props: any) => {
+    const { payload } = props
+    const legendItems = [
+      { dataKey: 'c_vn', name: 'จำนวนผู้ป่วย' },
+      { dataKey: 'c_dtmain', name: 'จำนวนหัตถการ' },
+      { dataKey: 'sum_price', name: 'ยอดค่ารักษา' },
+    ]
+
+    return (
+      <div className="flex flex-col gap-3">
+        {legendItems.map((item) => {
+          const isVisible = visibleSeries.has(item.dataKey)
+          return (
+            <div
+              key={item.dataKey}
+              onClick={() => handleLegendClick({ dataKey: item.dataKey })}
+              className={cn(
+                'flex items-center gap-2 cursor-pointer transition-opacity duration-200 whitespace-nowrap',
+                isVisible ? 'opacity-100' : 'opacity-50',
+              )}
+            >
+              <div
+                className="w-3 h-3 rounded-sm shrink-0"
+                style={{
+                  backgroundColor:
+                    item.dataKey === 'c_vn' ? 'hsl(var(--chart-1) / 0.75)' :
+                    item.dataKey === 'c_dtmain' ? 'hsl(var(--chart-2) / 0.75)' :
+                    'hsl(var(--chart-3))',
+                }}
+              />
+              <span className={cn('text-sm', isVisible ? 'text-foreground' : 'text-muted-foreground')}>
+                {item.name}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }, [visibleSeries, handleLegendClick])
 
   const getCardErrorMessage = useCallback(
     (queryError: Error | null) => {
@@ -888,59 +947,71 @@ export default function Dentistry() {
             ) : !isConnected || isDoctorPerfError ? (
               renderRetryAction(executeDoctorPerf, doctorPerfError)
             ) : doctorPerformance && doctorPerformance.length > 0 ? (
-              <ResponsiveContainer width="100%" height={440}>
-                <ComposedChart
-                  data={doctorPerformance}
-                  margin={{ top: 20, right: 30, left: 10, bottom: 120 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="doctorName"
-                    angle={-45}
-                    textAnchor="end"
-                    interval={0}
-                    height={100}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tick={{ fontSize: 12 }}
-                    width={50}
-                  />
-                  <Tooltip cursor={false} />
-                  <Legend verticalAlign="top" />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="c_vn"
-                    name="จำนวนผู้ป่วย"
-                    fill="hsl(var(--chart-1) / 0.75)"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
-                    isAnimationActive={false}
-                  />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="c_dtmain"
-                    name="จำนวนหัตถการ"
-                    fill="hsl(var(--chart-2) / 0.75)"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
-                    isAnimationActive={false}
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="sum_price"
-                    name="ยอดค่ารักษา"
-                    stroke="hsl(var(--chart-3))"
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <ResponsiveContainer width="100%" height={520}>
+                    <ComposedChart
+                      data={doctorPerformance}
+                      margin={{ top: 20, right: 20, left: 10, bottom: 100 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis
+                        dataKey="doctorName"
+                        angle={-45}
+                        textAnchor="end"
+                        interval={0}
+                        height={100}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        tick={{ fontSize: 12 }}
+                        width={50}
+                      />
+                      <Tooltip cursor={false} />
+                      {visibleSeries.has('c_vn') && (
+                        <Bar
+                          yAxisId="left"
+                          dataKey="c_vn"
+                          name="จำนวนผู้ป่วย"
+                          fill="hsl(var(--chart-1) / 0.75)"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                          isAnimationActive={false}
+                        />
+                      )}
+                      {visibleSeries.has('c_dtmain') && (
+                        <Bar
+                          yAxisId="left"
+                          dataKey="c_dtmain"
+                          name="จำนวนหัตถการ"
+                          fill="hsl(var(--chart-2) / 0.75)"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                          isAnimationActive={false}
+                        />
+                      )}
+                      {visibleSeries.has('sum_price') && (
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="sum_price"
+                          name="ยอดค่ารักษา"
+                          stroke="hsl(var(--chart-3))"
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                      )}
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-col justify-start pt-12 shrink-0 w-32">
+                  {renderCustomLegend({})}
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8">
                 <ToothIcon className="h-8 w-8 text-muted-foreground mb-2" />

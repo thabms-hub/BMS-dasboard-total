@@ -420,6 +420,8 @@ export interface AppointmentKpis {
   noShowToday: number
   cancelledToday: number
   noShowRate: number
+  labPreOrderToday: number
+  xrayPreOrderToday: number
 }
 
 export interface AppointmentDepartmentOption {

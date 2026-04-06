@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Siren, RefreshCw, CalendarDays, Clock, AlertCircle, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Siren, RefreshCw, CalendarDays, Clock, AlertCircle, RotateCcw, ChevronLeft, ChevronRight, Activity, Stethoscope, Timer, ShieldCheck } from 'lucide-react'
 import {
   ResponsiveContainer,
   XAxis,
@@ -148,6 +148,30 @@ export default function EmergencyMedicine() {
 
   const isConnected = connectionConfig !== null && session !== null
   const today = formatDate(new Date())
+  const thaiDateRangeLabel = useMemo(() => `${formatDate(startDate)} - ${formatDate(endDate)}`, [startDate, endDate])
+  const formatThaiMonthTick = useCallback((value: unknown) => {
+    const rawValue = String(value ?? '')
+    const normalizedValue = /^\d{4}-\d{2}$/.test(rawValue) ? `${rawValue}-01` : rawValue
+    const monthDate = new Date(normalizedValue)
+
+    if (Number.isNaN(monthDate.getTime())) {
+      return rawValue
+    }
+
+    return new Intl.DateTimeFormat('th-TH-u-ca-buddhist', { month: 'short', year: '2-digit' }).format(monthDate)
+  }, [])
+
+  const formatThaiMonthLabel = useCallback((value: unknown) => {
+    const rawValue = String(value ?? '')
+    const normalizedValue = /^\d{4}-\d{2}$/.test(rawValue) ? `${rawValue}-01` : rawValue
+    const monthDate = new Date(normalizedValue)
+
+    if (Number.isNaN(monthDate.getTime())) {
+      return rawValue
+    }
+
+    return new Intl.DateTimeFormat('th-TH-u-ca-buddhist', { month: 'long', year: 'numeric' }).format(monthDate)
+  }, [])
 
   const kpisFn = useCallback(
     () => getErDashboardKpis(connectionConfig!, session!.databaseType),
@@ -662,7 +686,12 @@ export default function EmergencyMedicine() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-black">ผู้ป่วย ER วันนี้</CardDescription>
+            <CardDescription className="flex items-center gap-2 text-black">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Siren className="h-3.5 w-3.5" />
+              </span>
+              <span>ผู้ป่วย ER วันนี้</span>
+            </CardDescription>
             <CardTitle className="text-3xl">
               {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.todayCount ?? 0).toLocaleString()}
             </CardTitle>
@@ -690,7 +719,12 @@ export default function EmergencyMedicine() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-black">ผู้ป่วย ER เดือนนี้</CardDescription>
+            <CardDescription className="flex items-center gap-2 text-black">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/10 text-sky-600">
+                <CalendarDays className="h-3.5 w-3.5" />
+              </span>
+              <span>ผู้ป่วย ER เดือนนี้</span>
+            </CardDescription>
             <CardTitle className="text-3xl">
               {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.monthCount ?? 0).toLocaleString()}
             </CardTitle>
@@ -704,7 +738,12 @@ export default function EmergencyMedicine() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-black">กำลังรักษาอยู่</CardDescription>
+            <CardDescription className="flex items-center gap-2 text-black">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/10 text-amber-600">
+                <Activity className="h-3.5 w-3.5" />
+              </span>
+              <span>กำลังรักษาอยู่</span>
+            </CardDescription>
             <CardTitle className="text-3xl">
               {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.activeTreatmentCount ?? 0).toLocaleString()}
             </CardTitle>
@@ -718,7 +757,12 @@ export default function EmergencyMedicine() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-black">ประสิทธิภาพงานฉุกเฉิน</CardDescription>
+            <CardDescription className="flex items-center gap-2 text-black">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                <ShieldCheck className="h-3.5 w-3.5" />
+              </span>
+              <span>ประสิทธิภาพงานฉุกเฉิน</span>
+            </CardDescription>
             <CardTitle className="text-3xl text-emerald-600">
               {isLevel1SurvivalLoading
                 ? <Skeleton className="h-9 w-24" />
@@ -738,7 +782,12 @@ export default function EmergencyMedicine() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-black">เวลารอแพทย์ตรวจ (เฉลี่ย)</CardDescription>
+            <CardDescription className="flex items-center gap-2 text-black">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/10 text-blue-600">
+                <Timer className="h-3.5 w-3.5" />
+              </span>
+              <span>เวลารอแพทย์ตรวจ (เฉลี่ย)</span>
+            </CardDescription>
             <CardTitle className="text-3xl text-blue-600">
               {isWaitTimeStatsLoading ? (
                 <Skeleton className="h-9 w-24" />
@@ -760,7 +809,12 @@ export default function EmergencyMedicine() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-black">เวลาแพทย์ตรวจ (เฉลี่ย)</CardDescription>
+            <CardDescription className="flex items-center gap-2 text-black">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                <Stethoscope className="h-3.5 w-3.5" />
+              </span>
+              <span>เวลาแพทย์ตรวจ (เฉลี่ย)</span>
+            </CardDescription>
             <CardTitle className="text-3xl text-emerald-600">
               {isWaitTimeStatsLoading ? (
                 <Skeleton className="h-9 w-24" />
@@ -1075,8 +1129,8 @@ export default function EmergencyMedicine() {
           <CardHeader className="space-y-0">
             <div className="flex flex-row items-start justify-between">
               <div>
-                <CardTitle>จำนวนหัตถการเทียบกับจำนวน VN (สัปดาห์นี้)</CardTitle>
-                <CardDescription>สรุปข้อมูลภายในสัปดาห์นี้ แยกตามวัน (คลิก legend เพื่อซ่อน/แสดง)</CardDescription>
+                <CardTitle>จำนวนหัตถการเทียบกับจำนวนผู้ป่วย(สัปดาห์นี้)</CardTitle>
+                <CardDescription>สรุปข้อมูลภายในสัปดาห์นี้ แยกตามวัน (คลิกคำอธิบายเพื่อซ่อน/แสดง)</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -1143,7 +1197,7 @@ export default function EmergencyMedicine() {
         <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle>ผู้ป่วยต่อแพทย์ (ER)</CardTitle>
-            <CardDescription>แสดงชื่อแพทย์และจำนวนผู้ป่วย (10 รายการต่อหน้า)</CardDescription>
+            <CardDescription>แสดงชื่อแพทย์และจำนวนผู้ป่วย</CardDescription>
           </CardHeader>
           <CardContent>
             {isDoctorLoadLoading ? (
@@ -1354,19 +1408,22 @@ export default function EmergencyMedicine() {
           ) : (monthlyTrendData?.length ?? 0) > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlyTrendData ?? []}>
-                <XAxis dataKey="month" />
+                <XAxis dataKey="month" tickFormatter={formatThaiMonthTick} />
                 <YAxis allowDecimals={false} />
                 <Tooltip
                   cursor={false}
                   formatter={((value: unknown) => [Number(value).toLocaleString(), 'ราย']) as never}
+                  labelFormatter={((value: unknown) => formatThaiMonthLabel(value)) as never}
                   contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
                 />
                 <Line
-                  type="monotone"
+                  type="natural"
                   dataKey="patientCount"
                   name="จำนวนผู้ป่วย ER"
                   stroke="hsl(var(--chart-1))"
                   strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   dot={{ r: 4, fill: 'hsl(var(--chart-1))', strokeWidth: 0 }}
                   activeDot={{ r: 6, fill: 'hsl(var(--chart-1))' }}
                 />
@@ -1379,7 +1436,7 @@ export default function EmergencyMedicine() {
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        ช่วงข้อมูลหลัก: {startDate} ถึง {endDate}
+        ช่วงข้อมูลหลัก: {thaiDateRangeLabel}
       </p>
     </div>
   )

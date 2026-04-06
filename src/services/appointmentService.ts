@@ -128,6 +128,8 @@ export async function getAppointmentKpis(
 ): Promise<AppointmentKpis> {
   const todayExpr = queryBuilder.currentDate(dbType)
   const visitVnExpr = queryBuilder.castToText(dbType, 'o.visit_vn')
+  const labTextExpr = queryBuilder.castToText(dbType, 'o.lab_list_text')
+  const xrayTextExpr = queryBuilder.castToText(dbType, 'o.xray_list_text')
   const departmentFilter = buildTextInFilter(dbType, 'o.depcode', departmentCodes)
 
   const sql =
@@ -135,7 +137,9 @@ export async function getAppointmentKpis(
     `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) THEN o.hn END) as total_today, ` +
     `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) AND ${visitVnExpr} IS NOT NULL AND ${visitVnExpr} <> '' THEN o.hn END) as attended_today, ` +
     `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) AND (${visitVnExpr} IS NULL OR ${visitVnExpr} = '') THEN o.hn END) as no_show_today, ` +
-    `COUNT(DISTINCT CASE WHEN COALESCE(o.oapp_status_id, 0) = 4 THEN o.hn END) as cancelled_today ` +
+    `COUNT(DISTINCT CASE WHEN COALESCE(o.oapp_status_id, 0) = 4 THEN o.hn END) as cancelled_today, ` +
+    `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) AND ${labTextExpr} IS NOT NULL AND ${labTextExpr} <> '' THEN o.hn END) as lab_pre_order_today, ` +
+    `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) AND ${xrayTextExpr} IS NOT NULL AND ${xrayTextExpr} <> '' THEN o.hn END) as xray_pre_order_today ` +
     `FROM oapp o ` +
     `LEFT JOIN oapp_status os ON os.oapp_status_id = o.oapp_status_id ` +
     `WHERE o.nextdate = ${todayExpr}` +
@@ -152,6 +156,8 @@ export async function getAppointmentKpis(
       noShowToday,
       cancelledToday: Number(row['cancelled_today'] ?? 0),
       noShowRate: totalToday > 0 ? Number(((noShowToday / totalToday) * 100).toFixed(1)) : 0,
+      labPreOrderToday: Number(row['lab_pre_order_today'] ?? 0),
+      xrayPreOrderToday: Number(row['xray_pre_order_today'] ?? 0),
     }
   })
 
@@ -161,6 +167,8 @@ export async function getAppointmentKpis(
     noShowToday: 0,
     cancelledToday: 0,
     noShowRate: 0,
+    labPreOrderToday: 0,
+    xrayPreOrderToday: 0,
   }
 }
 
@@ -389,36 +397,61 @@ export async function getAppointmentTopClinics(
   endDate: string,
   departmentCodes?: string[],
 ): Promise<AppointmentTopClinicItem[]> {
-  const depCodeExpr = `COALESCE(${queryBuilder.castToText(dbType, 'o.depcode')}, '')`
+  // Group by clinic name (not depcode) so multiple exam rooms under the same clinic are merged.
+  // Rows with no matching clinic entry all become "ไม่ระบุคลินิก" automatically via COALESCE + GROUP BY.
+  const clinicNameExpr = `COALESCE(${queryBuilder.castToText(dbType, 'cl.name')}, 'ไม่ระบุคลินิก')`
   const depNameExpr = `COALESCE(${queryBuilder.castToText(dbType, 'k.department')}, 'ไม่ระบุคลินิก')`
   const visitVnExpr = queryBuilder.castToText(dbType, 'o.visit_vn')
   const departmentFilter = buildTextInFilter(dbType, 'o.depcode', departmentCodes)
 
-  const sql =
-    `SELECT ` +
-    `${depCodeExpr} as clinic_code, ` +
-    `${depNameExpr} as clinic_name, ` +
+  const countFragment =
     `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) THEN o.hn END) as total_appointments, ` +
-    `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) AND (${visitVnExpr} IS NULL OR ${visitVnExpr} = '') THEN o.hn END) as no_show_appointments ` +
+    `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) AND (${visitVnExpr} IS NULL OR ${visitVnExpr} = '') THEN o.hn END) as no_show_appointments `
+
+  const queryCandidates = [
+    // Primary: join clinic table — groups by clinic name, hides room-level detail
+    `SELECT ${clinicNameExpr} as clinic_name, ${countFragment}` +
+    `FROM oapp o ` +
+    `LEFT JOIN clinic cl ON ${queryBuilder.castToText(dbType, 'cl.clinic')} = ${queryBuilder.castToText(dbType, 'o.depcode')} ` +
+    `WHERE o.nextdate >= '${startDate}' AND o.nextdate <= '${endDate}' ` +
+    departmentFilter +
+    `GROUP BY ${clinicNameExpr} ` +
+    `ORDER BY total_appointments DESC ` +
+    `LIMIT 8`,
+    // Fallback: join kskdepartment — groups by department name if clinic table is unavailable
+    `SELECT ${depNameExpr} as clinic_name, ${countFragment}` +
     `FROM oapp o ` +
     `LEFT JOIN kskdepartment k ON k.depcode = o.depcode ` +
     `WHERE o.nextdate >= '${startDate}' AND o.nextdate <= '${endDate}' ` +
     departmentFilter +
-    `GROUP BY ${depCodeExpr}, ${depNameExpr} ` +
+    `GROUP BY ${depNameExpr} ` +
     `ORDER BY total_appointments DESC ` +
-    `LIMIT 8`
+    `LIMIT 8`,
+  ]
 
-  const response = await executeSqlViaApi(sql, config)
-  return parseQueryResponse(response, (row) => {
-    const totalAppointments = Number(row['total_appointments'] ?? 0)
-    const noShowAppointments = Number(row['no_show_appointments'] ?? 0)
+  for (const sql of queryCandidates) {
+    try {
+      const response = await executeSqlViaApi(sql, config)
+      const rows = parseQueryResponse(response, (row) => {
+        const totalAppointments = Number(row['total_appointments'] ?? 0)
+        const noShowAppointments = Number(row['no_show_appointments'] ?? 0)
 
-    return {
-      clinicCode: String(row['clinic_code'] ?? ''),
-      clinicName: String(row['clinic_name'] ?? 'ไม่ระบุคลินิก'),
-      totalAppointments,
-      noShowAppointments,
-      noShowRate: totalAppointments > 0 ? Number(((noShowAppointments / totalAppointments) * 100).toFixed(1)) : 0,
+        return {
+          clinicCode: '',
+          clinicName: String(row['clinic_name'] ?? 'ไม่ระบุคลินิก'),
+          totalAppointments,
+          noShowAppointments,
+          noShowRate: totalAppointments > 0 ? Number(((noShowAppointments / totalAppointments) * 100).toFixed(1)) : 0,
+        }
+      })
+
+      if (rows.length > 0) {
+        return rows
+      }
+    } catch {
+      continue
     }
-  })
+  }
+
+  return []
 }

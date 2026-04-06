@@ -1,16 +1,16 @@
 // =============================================================================
-// Department: สูติกรรม (Obstetrics)
+// Support: งานห้องปฏิบัติการ Lab
 // =============================================================================
 
-import { Baby } from 'lucide-react'
+import { Microscope } from 'lucide-react'
 import { DepartmentPageTemplate } from '@/components/dashboard/DepartmentPageTemplate'
 
-export default function Obstetrics() {
+export default function SupportLab() {
   return (
     <DepartmentPageTemplate
-      title="สูติกรรม"
-      subtitle="Obstetrics"
-      icon={Baby}
+      title="งานห้องปฏิบัติการ Lab"
+      subtitle="Laboratory"
+      icon={Microscope}
     />
   )
 }

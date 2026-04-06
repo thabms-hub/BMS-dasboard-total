@@ -8,19 +8,38 @@ import { AppLayout } from '@/components/layout/AppLayout'
 
 const Overview = lazy(() => import('@/pages/Overview'))
 const Trends = lazy(() => import('@/pages/Trends'))
-const Appointments = lazy(() => import('@/pages/Appointments'))
-const DepartmentAnalytics = lazy(() => import('@/pages/DepartmentAnalytics'))
-const Demographics = lazy(() => import('@/pages/Demographics'))
 
-// Department sub-pages
-const InternalMedicine = lazy(() => import('@/pages/departments/InternalMedicine'))
-const Surgery = lazy(() => import('@/pages/departments/Surgery'))
-const Obstetrics = lazy(() => import('@/pages/departments/Obstetrics'))
-const Gynecology = lazy(() => import('@/pages/departments/Gynecology'))
-const Pediatrics = lazy(() => import('@/pages/departments/Pediatrics'))
-const Dentistry = lazy(() => import('@/pages/departments/Dentistry'))
-const ThaiTraditionalMedicine = lazy(() => import('@/pages/departments/ThaiTraditionalMedicine'))
-const EmergencyMedicine = lazy(() => import('@/pages/departments/EmergencyMedicine'))
+// งานผู้ป่วยนอก OPD
+const OpdDashboard = lazy(() => import('@/pages/opd/OpdDashboard'))
+const OpdScreen = lazy(() => import('@/pages/opd/OpdScreen'))
+const OpdExamRoom = lazy(() => import('@/pages/opd/OpdExamRoom'))
+const OpdSpecialClinic = lazy(() => import('@/pages/opd/OpdSpecialClinic'))
+const Appointments = lazy(() => import('@/pages/opd/Appointments'))
+const EmergencyMedicine = lazy(() => import('@/pages/opd/EmergencyMedicine'))
+const OpdRefer = lazy(() => import('@/pages/opd/OpdRefer'))
+
+// งานแพทย์ทางเลือก
+const AlternativeDashboard = lazy(() => import('@/pages/alternative/AlternativeDashboard'))
+const OpdPhysiotherapy = lazy(() => import('@/pages/opd/OpdPhysiotherapy'))
+const ThaiTraditionalMedicine = lazy(() => import('@/pages/opd/ThaiTraditionalMedicine'))
+const ChineseMedicine = lazy(() => import('@/pages/alternative/ChineseMedicine'))
+
+// งานผู้ป่วยใน IPD
+const IpdDashboard = lazy(() => import('@/pages/ipd/IpdDashboard'))
+const IpdInpatient = lazy(() => import('@/pages/ipd/IpdInpatient'))
+const IpdDelivery = lazy(() => import('@/pages/ipd/IpdDelivery'))
+
+// งานเภสัชกรรม
+const PharmacyDashboard = lazy(() => import('@/pages/pharmacy/PharmacyDashboard'))
+const PharmacyOpd = lazy(() => import('@/pages/pharmacy/PharmacyOpd'))
+const PharmacyIpd = lazy(() => import('@/pages/pharmacy/PharmacyIpd'))
+
+// งานสนับสนุนการรักษา
+const SupportDashboard = lazy(() => import('@/pages/support/SupportDashboard'))
+const Dentistry = lazy(() => import('@/pages/support/Dentistry'))
+const SupportLab = lazy(() => import('@/pages/support/SupportLab'))
+const SupportXray = lazy(() => import('@/pages/support/SupportXray'))
+const SupportOr = lazy(() => import('@/pages/support/SupportOr'))
 
 function AppRoutes() {
   return (
@@ -28,17 +47,39 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Overview />} />
         <Route path="/trends" element={<Trends />} />
-        <Route path="/appointments" element={<Appointments />} />
-        <Route path="/departments" element={<DepartmentAnalytics />} />
-        <Route path="/departments/internal-medicine" element={<InternalMedicine />} />
-        <Route path="/departments/surgery" element={<Surgery />} />
-        <Route path="/departments/obstetrics" element={<Obstetrics />} />
-        <Route path="/departments/gynecology" element={<Gynecology />} />
-        <Route path="/departments/pediatrics" element={<Pediatrics />} />
-        <Route path="/departments/dentistry" element={<Dentistry />} />
-        <Route path="/departments/thai-traditional" element={<ThaiTraditionalMedicine />} />
-        <Route path="/departments/emergency" element={<EmergencyMedicine />} />
-        <Route path="/demographics" element={<Demographics />} />
+
+        {/* งานผู้ป่วยนอก OPD */}
+        <Route path="/opd" element={<OpdDashboard />} />
+        <Route path="/opd/screen" element={<OpdScreen />} />
+        <Route path="/opd/exam-room" element={<OpdExamRoom />} />
+        <Route path="/opd/special-clinic" element={<OpdSpecialClinic />} />
+        <Route path="/opd/appointments" element={<Appointments />} />
+        <Route path="/opd/emergency" element={<EmergencyMedicine />} />
+        <Route path="/opd/refer" element={<OpdRefer />} />
+
+        {/* งานแพทย์ทางเลือก */}
+        <Route path="/alternative" element={<AlternativeDashboard />} />
+        <Route path="/alternative/physiotherapy" element={<OpdPhysiotherapy />} />
+        <Route path="/alternative/thai-traditional" element={<ThaiTraditionalMedicine />} />
+        <Route path="/alternative/chinese-medicine" element={<ChineseMedicine />} />
+
+        {/* งานผู้ป่วยใน IPD */}
+        <Route path="/ipd" element={<IpdDashboard />} />
+        <Route path="/ipd/inpatient" element={<IpdInpatient />} />
+        <Route path="/ipd/delivery" element={<IpdDelivery />} />
+
+        {/* งานเภสัชกรรม */}
+        <Route path="/pharmacy" element={<PharmacyDashboard />} />
+        <Route path="/pharmacy/opd" element={<PharmacyOpd />} />
+        <Route path="/pharmacy/ipd" element={<PharmacyIpd />} />
+
+        {/* งานสนับสนุนการรักษา */}
+        <Route path="/support" element={<SupportDashboard />} />
+        <Route path="/support/dentistry" element={<Dentistry />} />
+        <Route path="/support/lab" element={<SupportLab />} />
+        <Route path="/support/xray" element={<SupportXray />} />
+        <Route path="/support/or" element={<SupportOr />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

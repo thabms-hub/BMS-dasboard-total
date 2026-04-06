@@ -1,16 +1,16 @@
 // =============================================================================
-// Department: อายุรกรรม (Internal Medicine)
+// OPD: งานคัดกรอง OPD Screen
 // =============================================================================
 
-import { Stethoscope } from 'lucide-react'
+import { ClipboardCheck } from 'lucide-react'
 import { DepartmentPageTemplate } from '@/components/dashboard/DepartmentPageTemplate'
 
-export default function InternalMedicine() {
+export default function OpdScreen() {
   return (
     <DepartmentPageTemplate
-      title="อายุรกรรม"
-      subtitle="Internal Medicine"
-      icon={Stethoscope}
+      title="งานคัดกรอง OPD Screen"
+      subtitle="OPD Screening"
+      icon={ClipboardCheck}
     />
   )
 }

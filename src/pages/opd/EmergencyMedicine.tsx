@@ -645,12 +645,13 @@ export default function EmergencyMedicine() {
     <div className="space-y-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10">
-            <Siren className="h-5 w-5 text-red-600" />
+          <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 shadow-md ring-1 ring-primary/20">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/30 to-transparent" />
+            <Siren className="relative h-10 w-10 text-primary drop-shadow-sm" />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">ระบบงานเวชศาสตร์ฉุกเฉิน</h2>
-            <p className="text-sm text-muted-foreground">Emergency Medicine (ER)</p>
+          <div className="space-y-0.5">
+            <h2 className="text-3xl font-bold tracking-tight">งานอุบัติเหตุและฉุกเฉิน ER</h2>
+            <p className="text-base text-muted-foreground">Emergency Medicine (ER)</p>
             <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="h-3.5 w-3.5" />

@@ -5,35 +5,32 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
+  Activity,
   Baby,
-  Building2,
+  Bed,
   CalendarCheck2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
+  Infinity,
   LayoutDashboard,
   Leaf,
+  Microscope,
+  Package,
+  Pill,
+  Scan,
   Scissors,
-  SmilePlus,
+  Send,
   Siren,
+  Sprout,
+  Star,
   Stethoscope,
+  Sun,
   TrendingUp,
-  Users,
-  Venus,
 } from 'lucide-react'
 import type { LucideIcon, LucideProps } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-function WomanIcon({ className, size = 24, style, ...props }: LucideProps) {
-  return (
-    <Venus
-      className={className}
-      size={size}
-      style={{ transform: 'rotate(30deg)', ...style }}
-      {...props}
-    />
-  )
-}
 
 function ToothIcon({ className, size = 24, ...props }: LucideProps) {
   return (
@@ -72,24 +69,70 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'ภาพรวม', path: '/', icon: LayoutDashboard },
   { label: 'แนวโน้ม', path: '/trends', icon: TrendingUp },
-  { label: 'ระบบนัดหมาย', path: '/appointments', icon: CalendarCheck2 },
   {
-    label: 'ภาพรวมแผนก',
-    path: '/departments',
-    icon: Building2,
+    label: 'งานผู้ป่วยนอก OPD',
+    path: '/opd',
+    icon: Stethoscope,
     children: [
-      { label: 'อายุรกรรม', path: '/departments/internal-medicine', icon: Stethoscope },
-      { label: 'ศัลยกรรม', path: '/departments/surgery', icon: Scissors },
-      { label: 'สูติกรรม', path: '/departments/obstetrics', icon: Baby },
-      { label: 'นรีเวชกรรม', path: '/departments/gynecology', icon: WomanIcon as unknown as LucideIcon },
-      { label: 'กุมารเวชกรรม', path: '/departments/pediatrics', icon: SmilePlus },
-      { label: 'ทันตกรรม', path: '/departments/dentistry', icon: ToothIcon as unknown as LucideIcon },
-      { label: 'แพทย์แผนไทย', path: '/departments/thai-traditional', icon: Leaf },
-      { label: 'เวชศาสตร์ฉุกเฉิน', path: '/departments/emergency', icon: Siren },
+      { label: 'งานคัดกรอง OPD Screen', path: '/opd/screen', icon: ClipboardCheck },
+      { label: 'งานห้องตรวจแพทย์', path: '/opd/exam-room', icon: Stethoscope },
+      { label: 'งานคลินิกพิเศษ', path: '/opd/special-clinic', icon: Star },
+      { label: 'ระบบนัดหมาย', path: '/opd/appointments', icon: CalendarCheck2 },
+      { label: 'งานอุบัติเหตุและฉุกเฉิน ER', path: '/opd/emergency', icon: Siren },
+      { label: 'งานส่งต่อผู้ป่วย Refer', path: '/opd/refer', icon: Send },
     ],
   },
-  { label: 'ข้อมูลประชากร', path: '/demographics', icon: Users },
+  {
+    label: 'งานผู้ป่วยใน IPD',
+    path: '/ipd',
+    icon: Bed,
+    children: [
+      { label: 'ผู้ป่วยใน', path: '/ipd/inpatient', icon: Bed },
+      { label: 'ห้องคลอด', path: '/ipd/delivery', icon: Baby },
+    ],
+  },
+  {
+    label: 'งานเภสัชกรรม',
+    path: '/pharmacy',
+    icon: Pill,
+    children: [
+      { label: 'ห้องยาผู้ป่วยนอก', path: '/pharmacy/opd', icon: Pill },
+      { label: 'ห้องยาผู้ป่วยใน', path: '/pharmacy/ipd', icon: Package },
+    ],
+  },
+  {
+    label: 'ระบบสนับสนุน',
+    path: '/support',
+    icon: Infinity,
+    children: [
+      { label: 'ระบบทันตกรรม', path: '/support/dentistry', icon: ToothIcon as unknown as LucideIcon },
+      { label: 'งานห้องปฏิบัติการ Lab', path: '/support/lab', icon: Microscope },
+      { label: 'งานรังสีวิทยา X-Ray', path: '/support/xray', icon: Scan },
+      { label: 'ระบบห้องผ่าตัด OR', path: '/support/or', icon: Scissors },
+    ],
+  },
+  {
+    label: 'งานแพทย์ทางเลือก',
+    path: '/alternative',
+    icon: Sprout,
+    children: [
+      { label: 'งานกายภาพบำบัด', path: '/alternative/physiotherapy', icon: Activity },
+      { label: 'งานแพทย์แผนไทย', path: '/alternative/thai-traditional', icon: Leaf },
+      { label: 'งานแพทย์แผนจีน', path: '/alternative/chinese-medicine', icon: Sun },
+    ],
+  },
 ]
+
+/** Check if a child path matches the current location */
+function isChildPathActive(childPath: string, pathname: string): boolean {
+  return pathname === childPath || pathname.startsWith(childPath + '/')
+}
+
+/** Check if a nav group (with children) should be considered active */
+function isGroupActive(item: NavItem, pathname: string): boolean {
+  if (pathname.startsWith(item.path + '/') || pathname === item.path) return true
+  return item.children?.some((c) => isChildPathActive(c.path, pathname)) ?? false
+}
 
 const TABLET_BREAKPOINT = 1024
 
@@ -99,9 +142,12 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < TABLET_BREAKPOINT)
   const [userOverride, setUserOverride] = useState(false)
   const [openMenus, setOpenMenus] = useState<Set<string>>(() => {
-    return location.pathname.startsWith('/departments')
-      ? new Set(['/departments'])
-      : new Set()
+    for (const item of NAV_ITEMS) {
+      if (item.children && isGroupActive(item, location.pathname)) {
+        return new Set([item.path])
+      }
+    }
+    return new Set()
   })
 
   // Flyout state for collapsed mode
@@ -124,10 +170,13 @@ export function AppSidebar() {
     return () => window.removeEventListener('resize', handleResize)
   }, [handleResize])
 
-  // Auto-open parent menu when navigating to a child route
+  // Auto-open parent group when navigating to a child route
   useEffect(() => {
-    if (location.pathname.startsWith('/departments')) {
-      setOpenMenus((prev) => new Set([...prev, '/departments']))
+    for (const item of NAV_ITEMS) {
+      if (item.children && isGroupActive(item, location.pathname)) {
+        setOpenMenus((prev) => new Set([...prev, item.path]))
+        break
+      }
     }
   }, [location.pathname])
 
@@ -202,7 +251,7 @@ export function AppSidebar() {
             const hasChildren = !!item.children?.length
             const isParentActive = item.path === '/'
               ? location.pathname === '/'
-              : location.pathname.startsWith(item.path)
+              : isGroupActive(item, location.pathname)
             const isOpen = openMenus.has(item.path)
 
             return (
@@ -227,7 +276,6 @@ export function AppSidebar() {
                         )}
                       >
                         <Icon className="h-5 w-5 shrink-0" />
-                        {/* dot indicator: has sub-items */}
                         <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-white/60" />
                         {isParentActive && (
                           <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-white/80" />
@@ -235,39 +283,30 @@ export function AppSidebar() {
                       </Link>
                     </div>
                   ) : (
-                    // Expanded: link + separate chevron toggle
-                    <div
+                    // Expanded: full-row toggle button (click anywhere to open/close)
+                    <button
+                      onClick={() => toggleMenu(item.path)}
                       className={cn(
-                        'relative flex items-center rounded-lg text-sm font-semibold transition-all duration-200',
+                        'relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all duration-200',
                         isParentActive
                           ? 'bg-white/20 text-white'
                           : 'text-white/60 hover:bg-white/10 hover:text-white',
                       )}
                     >
-                      <Link
-                        to={item.path}
-                        className="flex flex-1 items-center gap-3 px-3 py-2.5"
-                      >
-                        <Icon className="h-5 w-5 shrink-0" />
-                        <span className="flex-1 text-left whitespace-nowrap overflow-hidden">
-                          {item.label}
-                        </span>
-                      </Link>
-                      <button
-                        onClick={() => toggleMenu(item.path)}
-                        className="px-2 py-2.5 hover:text-white"
-                      >
-                        <ChevronDown
-                          className={cn(
-                            'h-4 w-4 shrink-0 transition-transform duration-200',
-                            isOpen ? 'rotate-180' : '',
-                          )}
-                        />
-                      </button>
+                      <Icon className="h-5 w-5 shrink-0" />
+                      <span className="flex-1 text-left whitespace-nowrap overflow-hidden">
+                        {item.label}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          'h-4 w-4 shrink-0 transition-transform duration-200',
+                          isOpen ? 'rotate-180' : '',
+                        )}
+                      />
                       {isParentActive && (
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-white/80" />
                       )}
-                    </div>
+                    </button>
                   )
                 ) : (
                   <Link
@@ -300,7 +339,7 @@ export function AppSidebar() {
                   <div className="ml-4 mt-0.5 mb-1 border-l border-white/20 pl-2 flex flex-col gap-0.5">
                     {item.children!.map((child) => {
                       const ChildIcon = child.icon
-                      const isChildActive = location.pathname === child.path
+                      const isChildActive = isChildPathActive(child.path, location.pathname)
                       return (
                         <Link
                           key={child.path}
@@ -333,14 +372,13 @@ export function AppSidebar() {
           onMouseEnter={keepFlyout}
           onMouseLeave={closeFlyout}
         >
-          <div className="signature-gradient rounded-lg shadow-xl border border-white/10 py-1.5 min-w-44">
-            {/* Parent label */}
+          <div className="signature-gradient rounded-lg shadow-xl border border-white/10 py-1.5 min-w-52">
             <Link
               to={flyoutItem.path}
               onClick={() => setFlyoutPath(null)}
               className={cn(
                 'flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors',
-                location.pathname === flyoutItem.path
+                isGroupActive(flyoutItem, location.pathname)
                   ? 'text-white'
                   : 'text-white/70 hover:text-white',
               )}
@@ -349,10 +387,9 @@ export function AppSidebar() {
               <span>{flyoutItem.label}</span>
             </Link>
             <div className="mx-3 mb-1 border-t border-white/15" />
-            {/* Sub-items */}
             {flyoutItem.children!.map((child) => {
               const ChildIcon = child.icon
-              const isChildActive = location.pathname === child.path
+              const isChildActive = isChildPathActive(child.path, location.pathname)
               return (
                 <Link
                   key={child.path}

@@ -152,6 +152,35 @@ export function extractSystemInfo(response: BmsSessionResponse): SystemInfo {
 }
 
 // ---------------------------------------------------------------------------
+// Concurrency limiter — prevents 429 Too Many Requests from the BMS API
+// ---------------------------------------------------------------------------
+
+/** Maximum number of SQL requests that may be in-flight at the same time. */
+const MAX_CONCURRENT_REQUESTS = 3;
+
+let _activeRequests = 0;
+const _waitQueue: Array<() => void> = [];
+
+function _acquireSlot(): Promise<void> {
+  if (_activeRequests < MAX_CONCURRENT_REQUESTS) {
+    _activeRequests++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    _waitQueue.push(() => {
+      _activeRequests++;
+      resolve();
+    });
+  });
+}
+
+function _releaseSlot(): void {
+  _activeRequests--;
+  const next = _waitQueue.shift();
+  if (next) next();
+}
+
+// ---------------------------------------------------------------------------
 // SQL execution
 // ---------------------------------------------------------------------------
 
@@ -159,12 +188,17 @@ export function extractSystemInfo(response: BmsSessionResponse): SystemInfo {
  * Execute an arbitrary SQL statement against the BMS API and return the raw
  * response.
  *
+ * Requests are queued so that at most {@link MAX_CONCURRENT_REQUESTS} are
+ * in-flight at any time, preventing HTTP 429 rate-limit errors.
+ *
  * @throws {Error} On network failure, HTTP errors, or timeout.
  */
 export async function executeSqlViaApi(
   sql: string,
   config: ConnectionConfig,
 ): Promise<SqlApiResponse> {
+  await _acquireSlot();
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS);
 
@@ -219,6 +253,7 @@ export async function executeSqlViaApi(
     );
   } finally {
     clearTimeout(timeoutId);
+    _releaseSlot();
   }
 }
 

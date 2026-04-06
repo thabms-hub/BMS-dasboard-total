@@ -1,16 +1,16 @@
 // =============================================================================
-// Department: กุมารเวชกรรม (Pediatrics)
+// Pharmacy: ห้องยาผู้ป่วยใน
 // =============================================================================
 
-import { SmilePlus } from 'lucide-react'
+import { Package } from 'lucide-react'
 import { DepartmentPageTemplate } from '@/components/dashboard/DepartmentPageTemplate'
 
-export default function Pediatrics() {
+export default function PharmacyIpd() {
   return (
     <DepartmentPageTemplate
-      title="กุมารเวชกรรม"
-      subtitle="Pediatrics"
-      icon={SmilePlus}
+      title="ห้องยาผู้ป่วยใน"
+      subtitle="Inpatient Pharmacy"
+      icon={Package}
     />
   )
 }

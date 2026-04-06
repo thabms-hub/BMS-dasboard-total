@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { useState, useCallback, useMemo, useRef } from 'react'
-import { ChevronLeft, ChevronRight, RefreshCw, CalendarDays, Clock, AlertCircle, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, CalendarDays, Clock, AlertCircle, RotateCcw, Users, BedDouble, CalendarCheck2 } from 'lucide-react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -82,6 +82,17 @@ export default function Dentistry() {
 
   const isConnected = connectionConfig !== null && session !== null
   const today = formatDate(new Date())
+  const formatThaiDateSafe = useCallback((value?: string | null) => {
+    if (!value) {
+      return '-'
+    }
+
+    try {
+      return formatDate(value)
+    } catch {
+      return value
+    }
+  }, [])
 
   const dentistrySummaryFn = useCallback(
     () => getDentistrySummary(connectionConfig!, startDate, endDate),
@@ -476,18 +487,21 @@ export default function Dentistry() {
         unit: 'รายการ',
         description: 'นับจำนวนหัตถการทั้งหมด',
         icon: <ToothIcon className="h-4 w-4" />,
+        iconBadgeClassName: 'bg-purple-500/10 text-purple-600',
       },
       {
         label: 'ผู้ป่วยนอก',
         value: todayMetrics?.totalVisits,
         unit: 'ราย',
-        icon: <Clock className="h-4 w-4" />,
+        icon: <Users className="h-4 w-4" />,
+        iconBadgeClassName: 'bg-blue-500/10 text-blue-600',
       },
       {
         label: 'ผู้ป่วยใน',
         value: todayMetrics?.totalIPDCases,
         unit: 'ราย',
-        icon: <Clock className="h-4 w-4" />,
+        icon: <BedDouble className="h-4 w-4" />,
+        iconBadgeClassName: 'bg-green-500/10 text-green-600',
       },
     ],
     [dentistry, todayMetrics],
@@ -630,7 +644,7 @@ export default function Dentistry() {
               >
                 <CardContent className="flex flex-col gap-2 p-0">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <div className={cn('flex h-6 w-6 items-center justify-center rounded-full', stat.iconBadgeClassName)}>
                       {stat.icon}
                     </div>
                     <p className={cn('text-black/90 font-semibold', isCompactPatientCard ? 'text-xs' : 'text-sm')}>
@@ -689,7 +703,10 @@ export default function Dentistry() {
           })}
           <Card className="p-4 xl:col-span-3">
             <CardContent className="flex flex-col gap-5 p-0">
-              <div className="text-center">
+              <div className="flex items-center justify-center gap-2 text-center">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <CalendarCheck2 className="h-3.5 w-3.5" />
+                </span>
                 <p className="text-sm text-muted-foreground font-medium">นัดหมาย</p>
               </div>
               {isAppointmentStatusLoading ? (
@@ -716,7 +733,10 @@ export default function Dentistry() {
 
           <Card className="p-4 xl:col-span-3">
             <CardContent className="flex flex-col gap-5 p-0">
-              <div className="text-center">
+              <div className="flex items-center justify-center gap-2 text-center">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                  <ToothIcon className="h-3.5 w-3.5" />
+                </span>
                 <p className="text-sm text-muted-foreground font-medium">ตรวจสุขภาพฟัน</p>
               </div>
               {isOutServiceLoading ? (
@@ -1071,11 +1091,13 @@ export default function Dentistry() {
                       {visibleSeries.has('sum_price') && (
                         <Line
                           yAxisId="right"
-                          type="monotone"
+                          type="natural"
                           dataKey="sum_price"
                           name="ยอดค่ารักษา"
                           stroke="hsl(var(--chart-3))"
                           strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                           dot={false}
                           isAnimationActive={false}
                         />
@@ -1336,7 +1358,7 @@ export default function Dentistry() {
                             <TableCell className="text-xs">
                               {caseItem.visitTypeName || 'ไม่ระบุ'}
                             </TableCell>
-                            <TableCell className="text-xs">{caseItem.vstdate}</TableCell>
+                            <TableCell className="text-xs">{formatThaiDateSafe(caseItem.vstdate)}</TableCell>
                           </TableRow>
                         )
                       })}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarCheck2, RefreshCw, AlertCircle, RotateCcw, Check, ChevronDown } from 'lucide-react'
+import { CalendarCheck2, CircleCheckBig, RefreshCw, AlertCircle, RotateCcw, Check, ChevronDown, CircleSlash, CalendarRange, FlaskConical, Radiation } from 'lucide-react'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -15,6 +15,7 @@ import {
   PolarRadiusAxis,
 } from 'recharts'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
   getAppointmentDepartments,
@@ -25,8 +26,9 @@ import {
   getAppointmentTopDoctors,
   getAppointmentWalkInComparison,
 } from '@/services/appointmentService'
-import { getDateRange } from '@/utils/dateUtils'
+import { formatDate, getDateRange } from '@/utils/dateUtils'
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { EmptyState } from '@/components/dashboard/EmptyState'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -52,6 +54,7 @@ import type {
 
 export default function Appointments() {
   const { connectionConfig, session } = useBmsSessionContext()
+  const { colorTheme } = useTheme()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const defaultRange = useMemo(() => getDateRange(30), [])
@@ -60,6 +63,11 @@ export default function Appointments() {
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([])
   const [isClinicDropdownOpen, setIsClinicDropdownOpen] = useState(false)
   const clinicDropdownRef = useRef<HTMLDivElement | null>(null)
+  const walkInComparisonRef = useRef<HTMLDivElement>(null)
+  const cancelReasonsRef = useRef<HTMLDivElement>(null)
+  const monthlyTrendRef = useRef<HTMLDivElement>(null)
+  const topClinicsRef = useRef<HTMLDivElement>(null)
+  const topDoctorsRef = useRef<HTMLDivElement>(null)
 
   const isConnected = connectionConfig !== null && session !== null
 
@@ -217,6 +225,48 @@ export default function Appointments() {
   }, [])
 
   const walkInTotal = (walkInComparison?.bookedCount ?? 0) + (walkInComparison?.walkInCount ?? 0)
+  const walkInExportData = useMemo(
+    () => [
+      {
+        type: 'นัดล่วงหน้า',
+        count: walkInComparison?.bookedCount ?? 0,
+        rate: Number((walkInComparison?.bookedRate ?? 0).toFixed(1)),
+      },
+      {
+        type: 'ไม่ได้นัดล่วงหน้า',
+        count: walkInComparison?.walkInCount ?? 0,
+        rate: Number((walkInComparison?.walkInRate ?? 0).toFixed(1)),
+      },
+    ],
+    [walkInComparison],
+  )
+  const thaiDateRangeLabel = useMemo(() => `${formatDate(startDate)} - ${formatDate(endDate)}`, [startDate, endDate])
+  const isBlueColorTheme = colorTheme === 'blue'
+  const totalAppointmentLineColor = isBlueColorTheme ? '#362FD9' : 'hsl(var(--primary))'
+  const noShowLineColor = isBlueColorTheme ? '#537FE7' : 'hsl(var(--chart-2))'
+  const formatThaiMonthTick = useCallback((value: unknown) => {
+    const rawValue = String(value ?? '')
+    const normalizedValue = /^\d{4}-\d{2}$/.test(rawValue) ? `${rawValue}-01` : rawValue
+    const monthDate = new Date(normalizedValue)
+
+    if (Number.isNaN(monthDate.getTime())) {
+      return rawValue
+    }
+
+    return new Intl.DateTimeFormat('th-TH-u-ca-buddhist', { month: 'short', year: '2-digit' }).format(monthDate)
+  }, [])
+
+  const formatThaiMonthLabel = useCallback((value: unknown) => {
+    const rawValue = String(value ?? '')
+    const normalizedValue = /^\d{4}-\d{2}$/.test(rawValue) ? `${rawValue}-01` : rawValue
+    const monthDate = new Date(normalizedValue)
+
+    if (Number.isNaN(monthDate.getTime())) {
+      return rawValue
+    }
+
+    return new Intl.DateTimeFormat('th-TH-u-ca-buddhist', { month: 'long', year: 'numeric' }).format(monthDate)
+  }, [])
 
   const handleRangeChange = useCallback((newStartDate: string, newEndDate: string) => {
     setStartDate(newStartDate)
@@ -368,47 +418,72 @@ export default function Appointments() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>นัดวันนี้</CardDescription>
-            <CardTitle className="text-3xl">
-              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.totalToday ?? 0).toLocaleString()}
+            <CardDescription className="flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <CalendarRange className="h-3.5 w-3.5" />
+              </span>
+              <span className="text-foreground font-medium">นัดวันนี้</span>
+            </CardDescription>
+            <CardTitle className="text-3xl flex items-baseline gap-1.5">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : <>{(kpis?.totalToday ?? 0).toLocaleString()}<span className="text-base font-normal text-muted-foreground">ราย</span></>}
             </CardTitle>
-            <CardDescription className="text-xs">นับจำนวนผู้ป่วยแบบไม่ซ้ำ HN และไม่นับรายการยกเลิก</CardDescription>
+            <CardDescription className="text-xs">นับจำนวนผู้ป่วยแบบไม่ซ้ำ HN</CardDescription>
           </CardHeader>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>มาตามนัด</CardDescription>
-            <CardTitle className="text-3xl text-emerald-600">
-              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.attendedToday ?? 0).toLocaleString()}
+            <CardDescription className="flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                <CircleCheckBig className="h-3.5 w-3.5" />
+              </span>
+              <span className="text-foreground font-medium">มาตามนัด</span>
+            </CardDescription>
+            <CardTitle className="text-3xl text-emerald-600 flex items-baseline gap-1.5">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : <>{(kpis?.attendedToday ?? 0).toLocaleString()}<span className="text-base font-normal text-muted-foreground">ราย</span></>}
             </CardTitle>
           </CardHeader>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>ไม่มา</CardDescription>
-            <CardTitle className="text-3xl text-amber-600">
-              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.noShowToday ?? 0).toLocaleString()}
+            <CardDescription className="flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/12 text-amber-600">
+                <AlertCircle className="h-3.5 w-3.5" />
+              </span>
+              <span className="text-foreground font-medium">ไม่มา</span>
+            </CardDescription>
+            <CardTitle className="text-3xl text-amber-600 flex items-baseline gap-2">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : <>{(kpis?.noShowToday ?? 0).toLocaleString()}<span className="text-base font-normal text-muted-foreground">ราย</span></>}
+              {!isKpisLoading && isConnected && !isKpisError && (
+                <span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-600">
+                  {kpis?.noShowRate.toFixed(1) ?? '0.0'}%
+                </span>
+              )}
             </CardTitle>
             <CardDescription className="text-xs">
               {isKpisLoading
                 ? 'กำลังคำนวณ...'
                 : !isConnected || isKpisError
                   ? 'ไม่สามารถคำนวณอัตราได้'
-                  : `คิดเป็น ${kpis?.noShowRate.toFixed(1) ?? '0.0'}% ของนัดที่ยังไม่ยกเลิกวันนี้`}
+                  : 'สัดส่วนผู้ไม่มาตามนัด'}
             </CardDescription>
           </CardHeader>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>ยกเลิก</CardDescription>
-            <CardTitle className="text-3xl text-rose-600">
-              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.cancelledToday ?? 0).toLocaleString()}
+            <CardDescription className="flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-500/10 text-rose-600">
+                <CircleSlash className="h-3.5 w-3.5" />
+              </span>
+              <span className="text-foreground font-medium">ยกเลิก</span>
+            </CardDescription>
+            <CardTitle className="text-3xl text-rose-600 flex items-baseline gap-1.5">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : <>{(kpis?.cancelledToday ?? 0).toLocaleString()}<span className="text-base font-normal text-muted-foreground">รายการ</span></>}
             </CardTitle>
           </CardHeader>
           {!isKpisLoading && (!isConnected || isKpisError) && (
@@ -417,13 +492,52 @@ export default function Appointments() {
             </CardContent>
           )}
         </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/10 text-sky-600">
+                <FlaskConical className="h-3.5 w-3.5" />
+              </span>
+              <span className="text-foreground font-medium">แลปล่วงหน้า</span>
+            </CardDescription>
+            <CardTitle className="text-3xl text-sky-600 flex items-baseline gap-1.5">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : <>{(kpis?.labPreOrderToday ?? 0).toLocaleString()}<span className="text-base font-normal text-muted-foreground">ราย</span></>}
+            </CardTitle>
+            <CardDescription className="text-xs">มีรายการ Lab ล่วงหน้า</CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-violet-500/10 text-violet-600">
+                <Radiation className="h-3.5 w-3.5" />
+              </span>
+              <span className="text-foreground font-medium">X-Ray ล่วงหน้า</span>
+            </CardDescription>
+            <CardTitle className="text-3xl text-violet-600 flex items-baseline gap-1.5">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : <>{(kpis?.xrayPreOrderToday ?? 0).toLocaleString()}<span className="text-base font-normal text-muted-foreground">ราย</span></>}
+            </CardTitle>
+            <CardDescription className="text-xs">มีรายการ X-Ray ล่วงหน้า</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-6">
-          <CardHeader>
-            <CardTitle>ผู้รับบริการ Walk-in เทียบกับผู้ที่นัดมา</CardTitle>
-            <CardDescription>สัดส่วนผู้มารับบริการจริงในช่วงวันที่เลือก ({selectedDepartmentLabel})</CardDescription>
+        <Card ref={walkInComparisonRef} className="xl:col-span-6">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>ผู้รับบริการ Walk-in เทียบกับผู้ที่นัดมา</CardTitle>
+              <CardDescription>สัดส่วนผู้มารับบริการจริงช่วง {thaiDateRangeLabel} ({selectedDepartmentLabel})</CardDescription>
+            </div>
+            {walkInTotal > 0 && (
+              <ChartExportMenu
+                containerRef={walkInComparisonRef}
+                data={walkInExportData}
+                title="ผู้รับบริการ Walk-in เทียบกับผู้ที่นัดมา"
+              />
+            )}
           </CardHeader>
           <CardContent>
             {isWalkInComparisonLoading ? (
@@ -458,10 +572,19 @@ export default function Appointments() {
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-6">
-          <CardHeader>
-            <CardTitle>สรุปสาเหตุการยกเลิกนัด</CardTitle>
-            <CardDescription>แสดงความถี่เหตุผลยกเลิกนัดในรูปแบบ Radar Chart</CardDescription>
+        <Card ref={cancelReasonsRef} className="xl:col-span-6">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>สรุปสาเหตุการยกเลิกนัด</CardTitle>
+              <CardDescription>แสดงความถี่เหตุผลยกเลิกนัด</CardDescription>
+            </div>
+            {(cancelReasons?.length ?? 0) > 0 && (
+              <ChartExportMenu
+                containerRef={cancelReasonsRef}
+                data={cancelReasons ?? []}
+                title="สรุปสาเหตุการยกเลิกนัด"
+              />
+            )}
           </CardHeader>
           <CardContent className="h-56">
             {isCancelReasonsLoading ? (
@@ -500,10 +623,19 @@ export default function Appointments() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-12">
-          <CardHeader>
-            <CardTitle>แนวโน้มการนัดหมายรายเดือน</CardTitle>
-            <CardDescription>ย้อนหลัง 12 เดือน</CardDescription>
+        <Card ref={monthlyTrendRef} className="xl:col-span-12">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>แนวโน้มการนัดหมายรายเดือน</CardTitle>
+              <CardDescription>ย้อนหลัง 12 เดือน</CardDescription>
+            </div>
+            {(monthlyTrend?.length ?? 0) > 0 && (
+              <ChartExportMenu
+                containerRef={monthlyTrendRef}
+                data={monthlyTrend ?? []}
+                title="แนวโน้มการนัดหมายรายเดือน"
+              />
+            )}
           </CardHeader>
           <CardContent className="h-80">
             {isMonthlyTrendLoading ? (
@@ -515,47 +647,54 @@ export default function Appointments() {
                 <AreaChart data={monthlyTrend ?? []}>
                   <defs>
                     <linearGradient id="appointment-total-gradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor={totalAppointmentLineColor} stopOpacity={0.28} />
+                      <stop offset="100%" stopColor={totalAppointmentLineColor} stopOpacity={0.06} />
                     </linearGradient>
                     <linearGradient id="appointment-cancelled-gradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.4} />
                       <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="appointment-noshow-gradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor={noShowLineColor} stopOpacity={0.36} />
+                      <stop offset="100%" stopColor={noShowLineColor} stopOpacity={0.08} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="month" />
+                  <XAxis dataKey="month" tickFormatter={formatThaiMonthTick} />
                   <YAxis allowDecimals={false} />
                   <Tooltip
                     cursor={false}
                     formatter={((value: unknown, name: string) => [Number(value).toLocaleString(), name]) as never}
+                    labelFormatter={((value: unknown) => formatThaiMonthLabel(value)) as never}
                   />
                   <Legend />
                   <Area
-                    type="monotone"
+                    type="natural"
                     dataKey="totalAppointments"
                     name="จำนวนการนัด"
-                    stroke="hsl(var(--primary))"
+                    stroke={totalAppointmentLineColor}
                     strokeWidth={3}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     fill="url(#appointment-total-gradient)"
                   />
                   <Area
-                    type="monotone"
+                    type="natural"
                     dataKey="cancelledAppointments"
                     name="ยกเลิกนัด"
                     stroke="hsl(var(--destructive))"
                     strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     fill="url(#appointment-cancelled-gradient)"
                   />
                   <Area
-                    type="monotone"
+                    type="natural"
                     dataKey="noShowAppointments"
                     name="ไม่มาตามนัด"
-                    stroke="hsl(var(--accent))"
+                    stroke={noShowLineColor}
                     strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     fill="url(#appointment-noshow-gradient)"
                   />
                 </AreaChart>
@@ -569,10 +708,19 @@ export default function Appointments() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-6">
-          <CardHeader>
-            <CardTitle>คลินิกที่มีการนัดหมายสูงสุด</CardTitle>
-            <CardDescription>จัดอันดับตามจำนวนผู้ป่วยนัด พร้อมสัดส่วนผู้ไม่มาตามนัด ({selectedDepartmentLabel})</CardDescription>
+        <Card ref={topClinicsRef} className="xl:col-span-6">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>คลินิกที่มีการนัดหมายสูงสุด</CardTitle>
+              <CardDescription>จัดอันดับตามจำนวนผู้ป่วยนัดช่วง {thaiDateRangeLabel} ({selectedDepartmentLabel})</CardDescription>
+            </div>
+            {(topClinics?.length ?? 0) > 0 && (
+              <ChartExportMenu
+                containerRef={topClinicsRef}
+                data={topClinics ?? []}
+                title="คลินิกที่มีการนัดหมายสูงสุด"
+              />
+            )}
           </CardHeader>
           <CardContent>
             {isTopClinicsLoading ? (
@@ -592,7 +740,7 @@ export default function Appointments() {
                 </TableHeader>
                 <TableBody>
                   {(topClinics ?? []).map((item, index) => (
-                    <TableRow key={`${item.clinicCode}-${index}`}>
+                    <TableRow key={`${item.clinicName}-${index}`}>
                       <TableCell>{index + 1}</TableCell>
                       <TableCell className="font-medium">{item.clinicName}</TableCell>
                       <TableCell className="text-right">{item.totalAppointments.toLocaleString()}</TableCell>
@@ -608,10 +756,19 @@ export default function Appointments() {
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-6">
-          <CardHeader>
-            <CardTitle>Top 10 แพทย์ที่มีนัดมากที่สุด</CardTitle>
-            <CardDescription>เรียงตามจำนวนนัดในช่วงวันที่ที่เลือก</CardDescription>
+        <Card ref={topDoctorsRef} className="xl:col-span-6">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>Top 10 แพทย์ที่มีนัดมากที่สุด</CardTitle>
+              <CardDescription>เรียงตามจำนวนนัดช่วง {thaiDateRangeLabel}</CardDescription>
+            </div>
+            {(topDoctors?.length ?? 0) > 0 && (
+              <ChartExportMenu
+                containerRef={topDoctorsRef}
+                data={topDoctors ?? []}
+                title="Top 10 แพทย์ที่มีนัดมากที่สุด"
+              />
+            )}
           </CardHeader>
           <CardContent>
             {isTopDoctorsLoading ? (

@@ -454,6 +454,21 @@ export async function getErWaitTimeStats(
   dbType: DatabaseType,
 ): Promise<ErWaitTimeStats> {
   const todayExpr = queryBuilder.currentDate(dbType)
+
+  const hasRealEnterTimeExpr = dbType === 'mysql'
+    ? `enter_er_time IS NOT NULL AND TIME(enter_er_time) <> '00:00:00'`
+    : `enter_er_time IS NOT NULL AND enter_er_time::time <> TIME '00:00:00'`
+
+  const hasRealDoctorTimeExpr = dbType === 'mysql'
+    ? `doctor_tx_time IS NOT NULL AND TIME(doctor_tx_time) <> '00:00:00'`
+    : `doctor_tx_time IS NOT NULL AND doctor_tx_time::time <> TIME '00:00:00'`
+
+  const hasRealFinishTimeExpr = dbType === 'mysql'
+    ? `finish_time IS NOT NULL AND TIME(finish_time) <> '00:00:00'`
+    : `finish_time IS NOT NULL AND finish_time::time <> TIME '00:00:00'`
+
+  const waitCalcCondition = `${hasRealEnterTimeExpr} AND ${hasRealDoctorTimeExpr}`
+  const examCalcCondition = `${hasRealDoctorTimeExpr} AND ${hasRealFinishTimeExpr}`
   
   const timeDiffWaitExpr = dbType === 'mysql'
     ? `TIMESTAMPDIFF(MINUTE, enter_er_time, doctor_tx_time)`
@@ -465,9 +480,9 @@ export async function getErWaitTimeStats(
 
   const sql =
     `SELECT ` +
-    `ROUND(AVG(CASE WHEN enter_er_time IS NOT NULL AND doctor_tx_time IS NOT NULL THEN ${timeDiffWaitExpr} ELSE NULL END), 1) as avg_wait_before_doctor, ` +
-    `ROUND(AVG(CASE WHEN doctor_tx_time IS NOT NULL AND finish_time IS NOT NULL THEN ${timeDiffExamExpr} ELSE NULL END), 1) as avg_doctor_exam, ` +
-    `COUNT(*) as total_cases ` +
+    `ROUND(AVG(CASE WHEN ${waitCalcCondition} THEN ${timeDiffWaitExpr} ELSE NULL END), 1) as avg_wait_before_doctor, ` +
+    `ROUND(AVG(CASE WHEN ${examCalcCondition} THEN ${timeDiffExamExpr} ELSE NULL END), 1) as avg_doctor_exam, ` +
+    `COUNT(CASE WHEN ${waitCalcCondition} THEN 1 END) as total_cases ` +
     `FROM er_regist ` +
     `WHERE vstdate = ${todayExpr}`
 

@@ -268,6 +268,17 @@ export interface DentistryServiceTypeCount {
   totalCount: number
 }
 
+export interface DentistryTopProcedureItem {
+  code: string
+  procedureName: string
+  count: number
+}
+
+export interface DentistryCasesPage {
+  cases: DentistryCase[]
+  totalCount: number
+}
+
 /** Dentistry department summary */
 export interface DentistryDoctorPerformance {
   doctorName: string
@@ -304,6 +315,39 @@ export interface DentalExpenseByPaymentType {
 export interface DentalServicePlaceCount {
   inService: number
   outService: number
+}
+
+export interface OpdExamTopDiagnosisItem {
+  icd10: string
+  diagnosisName: string
+  patientCount: number
+}
+
+export interface OpdExamDoctorIcd10Item {
+  doctorCode: string
+  doctorName: string
+  patientCount: number
+  uniqueIcd10Count: number
+}
+
+export interface OpdExamReferOutDiseaseItem {
+  icd10: string
+  diagnosisName: string
+  referCount: number
+}
+
+export interface OpdExamOperationSetSummary {
+  operationOrderCount: number
+}
+
+export interface OpdExamWaitTimeItem {
+  spcltyName: string
+  waitDoctorAvg: string   // เฉลี่ยเวลารอหลัง screen ถึงเริ่มพบแพทย์ (HH:MM:SS)
+  waitDoctorMax: string   // สูงสุด
+  waitDoctorMin: string   // ต่ำสุด
+  doctorTimeAvg: string   // เฉลี่ยเวลาพบแพทย์ (HH:MM:SS)
+  doctorTimeMax: string   // สูงสุด
+  doctorTimeMin: string   // ต่ำสุด
 }
 
 export interface ErDashboardKpis {
@@ -453,6 +497,7 @@ export interface AppointmentCancelReasonItem {
 export interface AppointmentTopDoctorItem {
   doctorCode: string
   doctorName: string
+  doctorLicenseNo: string
   totalAppointments: number
 }
 
@@ -467,6 +512,7 @@ export interface AppointmentTopClinicItem {
   clinicCode: string
   clinicName: string
   totalAppointments: number
+  attendedAppointments: number
   noShowAppointments: number
   noShowRate: number
 }

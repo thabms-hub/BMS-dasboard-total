@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarCheck2, RefreshCw, AlertCircle, RotateCcw, Check, ChevronDown } from 'lucide-react'
+import {
+  CalendarCheck2,
+  RefreshCw,
+  AlertCircle,
+  RotateCcw,
+  Check,
+  ChevronDown,
+  FlaskConical,
+  Radiation,
+  CalendarDays,
+  CircleCheckBig,
+  CircleX,
+  CircleOff,
+} from 'lucide-react'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -40,6 +53,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { useTheme } from '@/contexts/ThemeContext'
+import { THAI_MONTHS_SHORT, ceYearToBe, formatThaiDateShort } from '@/utils/thaiCalendar'
+import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import type {
   AppointmentCancelReasonItem,
   AppointmentDepartmentOption,
@@ -52,6 +68,7 @@ import type {
 
 export default function Appointments() {
   const { connectionConfig, session } = useBmsSessionContext()
+  const { colorTheme } = useTheme()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const defaultRange = useMemo(() => getDateRange(0), [])
@@ -60,6 +77,11 @@ export default function Appointments() {
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([])
   const [isClinicDropdownOpen, setIsClinicDropdownOpen] = useState(false)
   const clinicDropdownRef = useRef<HTMLDivElement | null>(null)
+  const monthlyTrendRef = useRef<HTMLDivElement | null>(null)
+  const walkInRef = useRef<HTMLDivElement | null>(null)
+  const cancelReasonsRef = useRef<HTMLDivElement | null>(null)
+  const topClinicsRef = useRef<HTMLDivElement | null>(null)
+  const topDoctorsRef = useRef<HTMLDivElement | null>(null)
 
   const isConnected = connectionConfig !== null && session !== null
 
@@ -218,6 +240,22 @@ export default function Appointments() {
 
   const walkInTotal = (walkInComparison?.bookedCount ?? 0) + (walkInComparison?.walkInCount ?? 0)
 
+  const formatThaiMonthLabel = useCallback((value: string) => {
+    const [yearRaw, monthRaw] = value.split('-')
+    const year = Number(yearRaw)
+    const month = Number(monthRaw)
+
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+      return value
+    }
+
+    return `${THAI_MONTHS_SHORT[month - 1]} ${ceYearToBe(year)}`
+  }, [])
+
+  const isBlueTheme = colorTheme === 'blue'
+  const totalAppointmentColor = isBlueTheme ? '#362FD9' : 'hsl(var(--primary))'
+  const noShowColor = isBlueTheme ? '#537FE7' : 'hsl(var(--accent))'
+
   const handleRangeChange = useCallback((newStartDate: string, newEndDate: string) => {
     setStartDate(newStartDate)
     setEndDate(newEndDate)
@@ -368,47 +406,57 @@ export default function Appointments() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>นัดวันนี้</CardDescription>
-            <CardTitle className="text-3xl">
-              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.totalToday ?? 0).toLocaleString()}
-            </CardTitle>
-            <CardDescription className="text-xs">นับจำนวนผู้ป่วยแบบไม่ซ้ำ HN และไม่นับรายการยกเลิก</CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>มาตามนัด</CardDescription>
-            <CardTitle className="text-3xl text-emerald-600">
-              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.attendedToday ?? 0).toLocaleString()}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>ไม่มา</CardDescription>
-            <CardTitle className="text-3xl text-amber-600">
-              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.noShowToday ?? 0).toLocaleString()}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {isKpisLoading
-                ? 'กำลังคำนวณ...'
-                : !isConnected || isKpisError
-                  ? 'ไม่สามารถคำนวณอัตราได้'
-                  : `คิดเป็น ${kpis?.noShowRate.toFixed(1) ?? '0.0'}% ของนัดที่ยังไม่ยกเลิกวันนี้`}
+            <CardDescription className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
+              <CalendarDays className="h-3.5 w-3.5 text-sky-600" />
+              นัดทั้งหมด
             </CardDescription>
+            <CardTitle className="flex items-baseline gap-1.5 text-3xl">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.totalToday ?? 0).toLocaleString()} <span className="text-sm font-medium text-muted-foreground">ราย</span>
+            </CardTitle>
+            <CardDescription className="text-xs">จำนวนผู้ป่วย(HN)</CardDescription>
           </CardHeader>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>ยกเลิก</CardDescription>
-            <CardTitle className="text-3xl text-rose-600">
-              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.cancelledToday ?? 0).toLocaleString()}
+            <CardDescription className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
+              <CircleCheckBig className="h-3.5 w-3.5 text-emerald-600" />
+              มาตามนัด
+            </CardDescription>
+            <CardTitle className="flex items-baseline gap-1.5 text-3xl text-emerald-600">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.attendedToday ?? 0).toLocaleString()} <span className="text-sm font-medium text-muted-foreground">ราย</span>
+            </CardTitle>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
+              <CircleX className="h-3.5 w-3.5 text-amber-600" />
+              ไม่มา
+            </CardDescription>
+            <CardTitle className="flex items-baseline gap-1.5 text-3xl text-amber-600">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.noShowToday ?? 0).toLocaleString()}
+              {!isKpisLoading && isConnected && !isKpisError && (
+                <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:text-amber-300">
+                  {kpis?.noShowRate.toFixed(1) ?? '0.0'}%
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
+              <CircleOff className="h-3.5 w-3.5 text-rose-600" />
+              ยกเลิก
+            </CardDescription>
+            <CardTitle className="flex items-baseline gap-1.5 text-3xl text-rose-600">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.cancelledToday ?? 0).toLocaleString()} <span className="text-sm font-medium text-muted-foreground">รายการ</span>
             </CardTitle>
           </CardHeader>
           {!isKpisLoading && (!isConnected || isKpisError) && (
@@ -417,13 +465,46 @@ export default function Appointments() {
             </CardContent>
           )}
         </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
+              <FlaskConical className="h-3.5 w-3.5 text-indigo-600" />
+              LAB ล่วงหน้า
+            </CardDescription>
+            <CardTitle className="flex items-baseline gap-1.5 text-3xl text-indigo-600">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.labPreOrderToday ?? 0).toLocaleString()} <span className="text-sm font-medium text-muted-foreground">ราย</span>
+            </CardTitle>
+            <CardDescription className="text-xs">สั่ง Lab ในนัด</CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
+              <Radiation className="h-3.5 w-3.5 text-blue-600" />
+              X-Ray ล่วงหน้า
+            </CardDescription>
+            <CardTitle className="flex items-baseline gap-1.5 text-3xl text-blue-600">
+              {isKpisLoading ? <Skeleton className="h-9 w-24" /> : !isConnected || isKpisError ? '-' : (kpis?.xrayPreOrderToday ?? 0).toLocaleString()} <span className="text-sm font-medium text-muted-foreground">ราย</span>
+            </CardTitle>
+            <CardDescription className="text-xs">สั่ง X-Ray ในนัด</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-6">
-          <CardHeader>
-            <CardTitle>ผู้รับบริการ Walk-in เทียบกับผู้ที่นัดมา</CardTitle>
-            <CardDescription>สัดส่วนผู้มารับบริการจริงในช่วงวันที่เลือก ({selectedDepartmentLabel})</CardDescription>
+        <Card ref={walkInRef} className="xl:col-span-6">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>สัดส่วนผู้มารับบริการ</CardTitle>
+              <CardDescription>{selectedDepartmentLabel}</CardDescription>
+            </div>
+            <ChartExportMenu
+              containerRef={walkInRef}
+              data={walkInComparison ? [walkInComparison] : []}
+              title="สัดส่วนผู้มารับบริการ"
+            />
           </CardHeader>
           <CardContent>
             {isWalkInComparisonLoading ? (
@@ -458,10 +539,17 @@ export default function Appointments() {
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-6">
-          <CardHeader>
-            <CardTitle>สรุปสาเหตุการยกเลิกนัด</CardTitle>
-            <CardDescription>แสดงความถี่เหตุผลยกเลิกนัดในรูปแบบ Radar Chart</CardDescription>
+        <Card ref={cancelReasonsRef} className="xl:col-span-6">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>สรุปสาเหตุการยกเลิกนัด</CardTitle>
+              <CardDescription>แสดงความถี่เหตุผลยกเลิกนัดในรูปแบบ Radar Chart</CardDescription>
+            </div>
+            <ChartExportMenu
+              containerRef={cancelReasonsRef}
+              data={cancelReasons ?? []}
+              title="สรุปสาเหตุการยกเลิกนัด"
+            />
           </CardHeader>
           <CardContent className="h-56">
             {isCancelReasonsLoading ? (
@@ -471,13 +559,15 @@ export default function Appointments() {
             ) : (cancelReasons?.length ?? 0) > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={cancelReasons ?? []} outerRadius="72%">
-                  <PolarGrid stroke="hsl(var(--border))" />
+                  <PolarGrid radialLines stroke="hsl(var(--border))" strokeOpacity={0.7} />
                   <PolarAngleAxis
                     dataKey="reason"
+                    axisLine={false}
+                    tickLine={false}
                     tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickFormatter={(value) => String(value).slice(0, 24)}
                   />
-                  <PolarRadiusAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <PolarRadiusAxis allowDecimals={false} tick={false} axisLine={false} />
                   <Tooltip
                     cursor={false}
                     formatter={((value: unknown) => [Number(value).toLocaleString(), 'จำนวนครั้ง']) as never}
@@ -500,10 +590,17 @@ export default function Appointments() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-12">
-          <CardHeader>
-            <CardTitle>แนวโน้มการนัดหมายรายเดือน</CardTitle>
-            <CardDescription>ย้อนหลัง 12 เดือน</CardDescription>
+        <Card ref={monthlyTrendRef} className="xl:col-span-12">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>แนวโน้มการนัดหมายรายเดือน</CardTitle>
+              <CardDescription>ย้อนหลัง 12 เดือน </CardDescription>
+            </div>
+            <ChartExportMenu
+              containerRef={monthlyTrendRef}
+              data={monthlyTrend ?? []}
+              title="แนวโน้มการนัดหมายรายเดือน"
+            />
           </CardHeader>
           <CardContent className="h-80">
             {isMonthlyTrendLoading ? (
@@ -515,35 +612,36 @@ export default function Appointments() {
                 <AreaChart data={monthlyTrend ?? []}>
                   <defs>
                     <linearGradient id="appointment-total-gradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor={totalAppointmentColor} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={totalAppointmentColor} stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="appointment-cancelled-gradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.4} />
                       <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="appointment-noshow-gradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor={noShowColor} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={noShowColor} stopOpacity={0.08} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="month" />
+                  <XAxis dataKey="month" tickFormatter={formatThaiMonthLabel} />
                   <YAxis allowDecimals={false} />
                   <Tooltip
                     cursor={false}
                     formatter={((value: unknown, name: string) => [Number(value).toLocaleString(), name]) as never}
+                    labelFormatter={((label: unknown) => `เดือน: ${formatThaiMonthLabel(String(label))}`) as never}
                   />
                   <Legend />
                   <Area
-                    type="monotone"
+                    type="natural"
                     dataKey="totalAppointments"
                     name="จำนวนการนัด"
-                    stroke="hsl(var(--primary))"
+                    stroke={totalAppointmentColor}
                     strokeWidth={3}
                     fill="url(#appointment-total-gradient)"
                   />
                   <Area
-                    type="monotone"
+                    type="natural"
                     dataKey="cancelledAppointments"
                     name="ยกเลิกนัด"
                     stroke="hsl(var(--destructive))"
@@ -551,10 +649,10 @@ export default function Appointments() {
                     fill="url(#appointment-cancelled-gradient)"
                   />
                   <Area
-                    type="monotone"
+                    type="natural"
                     dataKey="noShowAppointments"
                     name="ไม่มาตามนัด"
-                    stroke="hsl(var(--accent))"
+                    stroke={noShowColor}
                     strokeWidth={2}
                     fill="url(#appointment-noshow-gradient)"
                   />
@@ -569,10 +667,20 @@ export default function Appointments() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-6">
-          <CardHeader>
-            <CardTitle>คลินิกที่มีการนัดหมายสูงสุด</CardTitle>
-            <CardDescription>จัดอันดับตามจำนวนผู้ป่วยนัด พร้อมสัดส่วนผู้ไม่มาตามนัด ({selectedDepartmentLabel})</CardDescription>
+        <Card ref={topClinicsRef} className="xl:col-span-6">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>คลินิกที่มีการนัดหมายสูงสุด</CardTitle>
+              <CardDescription>
+                เรียงตามจำนวนผู้ป่วยนัด ({selectedDepartmentLabel})
+                ช่วงวันที่ {formatThaiDateShort(startDate)} - {formatThaiDateShort(endDate)}
+              </CardDescription>
+            </div>
+            <ChartExportMenu
+              containerRef={topClinicsRef}
+              data={topClinics ?? []}
+              title="คลินิกที่มีการนัดหมายสูงสุด"
+            />
           </CardHeader>
           <CardContent>
             {isTopClinicsLoading ? (
@@ -586,6 +694,7 @@ export default function Appointments() {
                     <TableHead className="w-16">อันดับ</TableHead>
                     <TableHead>คลินิก</TableHead>
                     <TableHead className="text-right">นัด</TableHead>
+                    <TableHead className="text-right">มา</TableHead>
                     <TableHead className="text-right">ไม่มา</TableHead>
                     <TableHead className="text-right">% ไม่มา</TableHead>
                   </TableRow>
@@ -596,6 +705,7 @@ export default function Appointments() {
                       <TableCell>{index + 1}</TableCell>
                       <TableCell className="font-medium">{item.clinicName}</TableCell>
                       <TableCell className="text-right">{item.totalAppointments.toLocaleString()}</TableCell>
+                      <TableCell className="text-right text-emerald-600">{item.attendedAppointments.toLocaleString()}</TableCell>
                       <TableCell className="text-right">{item.noShowAppointments.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-medium text-amber-600">{item.noShowRate.toFixed(1)}%</TableCell>
                     </TableRow>
@@ -608,10 +718,19 @@ export default function Appointments() {
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-6">
-          <CardHeader>
-            <CardTitle>Top 10 แพทย์ที่มีนัดมากที่สุด</CardTitle>
-            <CardDescription>เรียงตามจำนวนนัดในช่วงวันที่ที่เลือก</CardDescription>
+        <Card ref={topDoctorsRef} className="xl:col-span-6">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>Top 10 แพทย์ที่มีนัดมากที่สุด</CardTitle>
+              <CardDescription>
+                ช่วงวันที่ {formatThaiDateShort(startDate)} - {formatThaiDateShort(endDate)}
+              </CardDescription>
+            </div>
+            <ChartExportMenu
+              containerRef={topDoctorsRef}
+              data={topDoctors ?? []}
+              title="Top 10 แพทย์ที่มีนัดมากที่สุด"
+            />
           </CardHeader>
           <CardContent>
             {isTopDoctorsLoading ? (
@@ -631,7 +750,7 @@ export default function Appointments() {
                   {(topDoctors ?? []).map((item, index) => (
                     <TableRow key={`${item.doctorCode}-${index}`}>
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell className="font-medium">{item.doctorName}</TableCell>
+                      <TableCell className="font-medium">{item.doctorName} ({item.doctorLicenseNo})</TableCell>
                       <TableCell className="text-right">{item.totalAppointments.toLocaleString()}</TableCell>
                     </TableRow>
                   ))}

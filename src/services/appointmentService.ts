@@ -327,9 +327,22 @@ export async function getAppointmentTopDoctors(
 ): Promise<AppointmentTopDoctorItem[]> {
   const doctorCodeExpr = `COALESCE(NULLIF(${queryBuilder.castToText(dbType, 'o.doctor')}, ''), 'ไม่ระบุรหัสแพทย์')`
   const doctorNameExpr = `COALESCE(${queryBuilder.castToText(dbType, 'd.name')}, 'ไม่ระบุชื่อแพทย์')`
+  const doctorLicenseExpr = `COALESCE(NULLIF(${queryBuilder.castToText(dbType, 'd.licenseno')}, ''), ${doctorCodeExpr})`
   const departmentFilter = buildTextInFilter(dbType, 'o.depcode', departmentCodes)
 
-  const sql =
+  const queryCandidates = [
+    `SELECT ` +
+    `${doctorCodeExpr} as doctor_code, ` +
+    `${doctorNameExpr} as doctor_name, ` +
+    `${doctorLicenseExpr} as doctor_license_no, ` +
+    `COUNT(*) as total_appointments ` +
+    `FROM oapp o ` +
+    `LEFT JOIN doctor d ON ${queryBuilder.castToText(dbType, 'd.code')} = ${queryBuilder.castToText(dbType, 'o.doctor')} ` +
+    `WHERE o.nextdate >= '${startDate}' AND o.nextdate <= '${endDate}' ` +
+    departmentFilter +
+    `GROUP BY ${doctorCodeExpr}, ${doctorNameExpr}, ${doctorLicenseExpr} ` +
+    `ORDER BY total_appointments DESC ` +
+    `LIMIT 10`,
     `SELECT ` +
     `${doctorCodeExpr} as doctor_code, ` +
     `${doctorNameExpr} as doctor_name, ` +
@@ -340,14 +353,32 @@ export async function getAppointmentTopDoctors(
     departmentFilter +
     `GROUP BY ${doctorCodeExpr}, ${doctorNameExpr} ` +
     `ORDER BY total_appointments DESC ` +
-    `LIMIT 10`
+    `LIMIT 10`,
+  ]
 
-  const response = await executeSqlViaApi(sql, config)
-  return parseQueryResponse(response, (row) => ({
-    doctorCode: String(row['doctor_code'] ?? 'ไม่ระบุรหัสแพทย์'),
-    doctorName: String(row['doctor_name'] ?? 'ไม่ระบุชื่อแพทย์'),
-    totalAppointments: Number(row['total_appointments'] ?? 0),
-  }))
+  for (const sql of queryCandidates) {
+    try {
+      const response = await executeSqlViaApi(sql, config)
+      const rows = parseQueryResponse(response, (row) => {
+        const doctorCode = String(row['doctor_code'] ?? 'ไม่ระบุรหัสแพทย์')
+
+        return {
+          doctorCode,
+          doctorName: String(row['doctor_name'] ?? 'ไม่ระบุชื่อแพทย์'),
+          doctorLicenseNo: String(row['doctor_license_no'] ?? doctorCode),
+          totalAppointments: Number(row['total_appointments'] ?? 0),
+        }
+      })
+
+      if (rows.length > 0) {
+        return rows
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return []
 }
 
 export async function getAppointmentWalkInComparison(
@@ -397,34 +428,34 @@ export async function getAppointmentTopClinics(
   endDate: string,
   departmentCodes?: string[],
 ): Promise<AppointmentTopClinicItem[]> {
-  // Group by clinic name (not depcode) so multiple exam rooms under the same clinic are merged.
-  // Rows with no matching clinic entry all become "ไม่ระบุคลินิก" automatically via COALESCE + GROUP BY.
-  const clinicNameExpr = `COALESCE(${queryBuilder.castToText(dbType, 'cl.name')}, 'ไม่ระบุคลินิก')`
-  const depNameExpr = `COALESCE(${queryBuilder.castToText(dbType, 'k.department')}, 'ไม่ระบุคลินิก')`
+  // Group by clinic/department names (not room IDs) and collapse blanks to one unspecified clinic.
+  const clinicNameExpr = `COALESCE(NULLIF(TRIM(${queryBuilder.castToText(dbType, 'cl.name')}), ''), 'ไม่ระบุคลินิก')`
+  const depNameExpr = `COALESCE(NULLIF(TRIM(${queryBuilder.castToText(dbType, 'k.department')}), ''), 'ไม่ระบุคลินิก')`
   const visitVnExpr = queryBuilder.castToText(dbType, 'o.visit_vn')
   const departmentFilter = buildTextInFilter(dbType, 'o.depcode', departmentCodes)
 
   const countFragment =
     `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) THEN o.hn END) as total_appointments, ` +
+    `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) AND ${visitVnExpr} IS NOT NULL AND ${visitVnExpr} <> '' THEN o.hn END) as attended_appointments, ` +
     `COUNT(DISTINCT CASE WHEN (o.oapp_status_id IS NULL OR o.oapp_status_id < 4) AND (${visitVnExpr} IS NULL OR ${visitVnExpr} = '') THEN o.hn END) as no_show_appointments `
 
   const queryCandidates = [
-    // Primary: join clinic table — groups by clinic name, hides room-level detail
-    `SELECT ${clinicNameExpr} as clinic_name, ${countFragment}` +
-    `FROM oapp o ` +
-    `LEFT JOIN clinic cl ON ${queryBuilder.castToText(dbType, 'cl.clinic')} = ${queryBuilder.castToText(dbType, 'o.depcode')} ` +
-    `WHERE o.nextdate >= '${startDate}' AND o.nextdate <= '${endDate}' ` +
-    departmentFilter +
-    `GROUP BY ${clinicNameExpr} ` +
-    `ORDER BY total_appointments DESC ` +
-    `LIMIT 8`,
-    // Fallback: join kskdepartment — groups by department name if clinic table is unavailable
+    // Primary: join department table to prefer clinic-level labels over room names.
     `SELECT ${depNameExpr} as clinic_name, ${countFragment}` +
     `FROM oapp o ` +
     `LEFT JOIN kskdepartment k ON k.depcode = o.depcode ` +
     `WHERE o.nextdate >= '${startDate}' AND o.nextdate <= '${endDate}' ` +
     departmentFilter +
     `GROUP BY ${depNameExpr} ` +
+    `ORDER BY total_appointments DESC ` +
+    `LIMIT 8`,
+    // Fallback: clinic table if department metadata is unavailable.
+    `SELECT ${clinicNameExpr} as clinic_name, ${countFragment}` +
+    `FROM oapp o ` +
+    `LEFT JOIN clinic cl ON ${queryBuilder.castToText(dbType, 'cl.clinic')} = ${queryBuilder.castToText(dbType, 'o.depcode')} ` +
+    `WHERE o.nextdate >= '${startDate}' AND o.nextdate <= '${endDate}' ` +
+    departmentFilter +
+    `GROUP BY ${clinicNameExpr} ` +
     `ORDER BY total_appointments DESC ` +
     `LIMIT 8`,
   ]
@@ -434,12 +465,14 @@ export async function getAppointmentTopClinics(
       const response = await executeSqlViaApi(sql, config)
       const rows = parseQueryResponse(response, (row) => {
         const totalAppointments = Number(row['total_appointments'] ?? 0)
+        const attendedAppointments = Number(row['attended_appointments'] ?? 0)
         const noShowAppointments = Number(row['no_show_appointments'] ?? 0)
 
         return {
           clinicCode: '',
           clinicName: String(row['clinic_name'] ?? 'ไม่ระบุคลินิก'),
           totalAppointments,
+          attendedAppointments,
           noShowAppointments,
           noShowRate: totalAppointments > 0 ? Number(((noShowAppointments / totalAppointments) * 100).toFixed(1)) : 0,
         }

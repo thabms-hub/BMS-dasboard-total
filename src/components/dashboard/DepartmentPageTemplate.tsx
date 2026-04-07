@@ -3,13 +3,17 @@
 // =============================================================================
 
 import type { LucideIcon } from 'lucide-react'
-import type { ComponentType } from 'react'
+import { useCallback, useMemo, useState, type ComponentType } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
+import { getDateRange } from '@/utils/dateUtils'
 
 interface DepartmentPageTemplateProps {
   title: string
   subtitle?: string
   icon: LucideIcon | ComponentType<{ className?: string }>
+  enableDateFilter?: boolean
+  onDateRangeChange?: (startDate: string, endDate: string) => void
   children?: React.ReactNode
 }
 
@@ -17,8 +21,20 @@ export function DepartmentPageTemplate({
   title,
   subtitle,
   icon: Icon,
+  enableDateFilter = false,
+  onDateRangeChange,
   children,
 }: DepartmentPageTemplateProps) {
+  const defaultRange = useMemo(() => getDateRange(0), [])
+  const [startDate, setStartDate] = useState(defaultRange.startDate)
+  const [endDate, setEndDate] = useState(defaultRange.endDate)
+
+  const handleRangeChange = useCallback((newStartDate: string, newEndDate: string) => {
+    setStartDate(newStartDate)
+    setEndDate(newEndDate)
+    onDateRangeChange?.(newStartDate, newEndDate)
+  }, [onDateRangeChange])
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -34,6 +50,15 @@ export function DepartmentPageTemplate({
           )}
         </div>
       </div>
+
+      {enableDateFilter && (
+        <DateRangePicker
+          startDate={startDate}
+          endDate={endDate}
+          onRangeChange={handleRangeChange}
+          isLoading={false}
+        />
+      )}
 
       {/* Content */}
       {children ?? (

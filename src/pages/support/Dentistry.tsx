@@ -33,13 +33,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ToothIcon } from '@/components/icons/ToothIcon'
-import { EmptyState } from '@/components/dashboard/EmptyState'
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
 import { ChartExportMenu } from '@/components/dashboard/ChartExportMenu'
 import { useBmsSessionContext } from '@/contexts/BmsSessionContext'
 import { useQuery } from '@/hooks/useQuery'
 import {
   getDentistrySummary,
+  getDentistryCasesPage,
+  getDentistryTopProcedures,
   getDoctorPerformance,
   getDentService,
   getDentalAppointmentStatus,
@@ -54,10 +55,14 @@ import type {
   DentistrySummary,
   DentistryDoctorPerformance,
   DentistryServiceTypeCount,
+  DentistryCasesPage,
+  DentistryTopProcedureItem,
   DentalAppointmentStatus,
   DentalExpenseByPaymentType,
   DentalServicePlaceCount,
 } from '@/types'
+
+const PAGE_SIZE = 10
 
 export default function Dentistry() {
   const { connectionConfig, session } = useBmsSessionContext()
@@ -106,6 +111,22 @@ export default function Dentistry() {
 
   const { data: dentistry, isLoading, isError, error, execute } = useQuery<DentistrySummary>({
     queryFn: dentistrySummaryFn,
+    enabled: isConnected,
+  })
+
+  const dentistryCasesPageFn = useCallback(
+    () => getDentistryCasesPage(connectionConfig!, startDate, endDate, currentPage, PAGE_SIZE),
+    [connectionConfig, startDate, endDate, currentPage],
+  )
+
+  const {
+    data: dentistryCasesPage,
+    isLoading: isCasesPageLoading,
+    isError: isCasesPageError,
+    error: casesPageError,
+    execute: executeCasesPage,
+  } = useQuery<DentistryCasesPage>({
+    queryFn: dentistryCasesPageFn,
     enabled: isConnected,
   })
 
@@ -205,6 +226,22 @@ export default function Dentistry() {
     enabled: isConnected,
   })
 
+  const topProceduresFn = useCallback(
+    () => getDentistryTopProcedures(connectionConfig!, startDate, endDate),
+    [connectionConfig, startDate, endDate],
+  )
+
+  const {
+    data: topProcedures,
+    isLoading: isTopProceduresLoading,
+    isError: isTopProceduresError,
+    error: topProceduresError,
+    execute: executeTopProcedures,
+  } = useQuery<DentistryTopProcedureItem[]>({
+    queryFn: topProceduresFn,
+    enabled: isConnected,
+  })
+
   const handleRangeChange = useCallback((newStart: string, newEnd: string) => {
     setRange(newStart, newEnd)
     setCurrentPage(0) // Reset to first page when date changes
@@ -215,12 +252,14 @@ export default function Dentistry() {
     try {
       await Promise.all([
         execute(),
+        executeCasesPage(),
         executeTodayMetrics(),
         executeDoctorPerf(),
         executeDentService(),
         executeAppointmentStatus(),
         executeOutServiceCount(),
         executeExpenseByPayment(),
+        executeTopProcedures(),
       ])
       setLastUpdated(new Date())
     } finally {
@@ -229,12 +268,14 @@ export default function Dentistry() {
     }
   }, [
     execute,
+    executeCasesPage,
     executeTodayMetrics,
     executeDoctorPerf,
     executeDentService,
     executeAppointmentStatus,
     executeOutServiceCount,
     executeExpenseByPayment,
+    executeTopProcedures,
   ])
 
   // Handle legend click to toggle visibility
@@ -253,7 +294,7 @@ export default function Dentistry() {
 
   // Custom legend renderer for doctor performance chart
   const renderCustomLegend = useCallback((props: any) => {
-    const { payload } = props
+    void props
     const legendItems = [
       { dataKey: 'c_vn', name: 'จำนวนผู้ป่วย' },
       { dataKey: 'c_dtmain', name: 'จำนวนหัตถการ' },
@@ -325,10 +366,9 @@ export default function Dentistry() {
   // ---------------------------------------------------------------------------
   // Pagination logic
   // ---------------------------------------------------------------------------
-  const PAGE_SIZE = 10
-  const allCases = dentistry?.cases || []
-  const totalPages = Math.ceil(allCases.length / PAGE_SIZE)
-  const pagedCases = allCases.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
+  const pagedCases = dentistryCasesPage?.cases ?? []
+  const totalCaseCount = dentistryCasesPage?.totalCount ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCaseCount / PAGE_SIZE))
 
   const handlePreviousPage = useCallback(() => {
     setCurrentPage((prev) => Math.max(prev - 1, 0))
@@ -419,20 +459,6 @@ export default function Dentistry() {
     value: item.totalCount,
   }))
 
-  // Appointment status doughnut chart data
-  const appointmentStatusColors: Record<string, string> = {
-    'ยังไม่มา': 'hsl(var(--chart-4))',
-    'มาตามนัด': 'hsl(var(--chart-2))',
-    'ยกเลิก': 'hsl(var(--chart-3))',
-    'เลื่อนนัด': 'hsl(var(--chart-5))',
-    'ไม่มาตามนัด': 'hsl(var(--chart-1))',
-  }
-  const appointmentStatusChartData = (appointmentStatus ?? []).map((item) => ({
-    name: item.statusName,
-    value: item.count,
-    fill: appointmentStatusColors[item.statusName] ?? 'hsl(var(--chart-1) / 0.6)',
-  }))
-  const totalAppointmentsInRange = appointmentStatusChartData.reduce((sum, item) => sum + item.value, 0)
   const attendedAppointmentCount =
     (appointmentStatus ?? []).find((item) => item.statusName === 'มารับบริการแล้ว' || item.statusName === 'มาตามนัด')?.count ?? 0
   const noShowAppointmentCount =
@@ -445,38 +471,7 @@ export default function Dentistry() {
   const totalPaymentExpense = paymentExpenseChartData.reduce((sum, item) => sum + item.value, 0)
 
   // Top 10 หัตถการที่ทำบ่อย — grouped by procedure code
-  const topProceduresChartData = useMemo(() => {
-    const countMap = new Map<string, number>()
-    const procedureNameByCode = new Map<string, Map<string, number>>()
-
-    for (const c of allCases) {
-      const code = c.ttcode?.trim()
-      const name = c.tmName?.trim() || 'ไม่ระบุชื่อหัตถการ'
-      if (!code) continue
-
-      countMap.set(code, (countMap.get(code) ?? 0) + 1)
-
-      const names = procedureNameByCode.get(code) ?? new Map<string, number>()
-      names.set(name, (names.get(name) ?? 0) + 1)
-      procedureNameByCode.set(code, names)
-    }
-
-    return Array.from(countMap.entries())
-      .map(([code, count]) => {
-        const names = procedureNameByCode.get(code)
-        const procedureName = names
-          ? Array.from(names.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'ไม่ระบุชื่อหัตถการ'
-          : 'ไม่ระบุชื่อหัตถการ'
-
-        return {
-          code,
-          procedureName,
-          count,
-        }
-      })
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
-  }, [allCases])
+  const topProceduresChartData = topProcedures ?? []
 
   // Mini stat cards definition
   const miniStats = useMemo(
@@ -520,115 +515,6 @@ export default function Dentistry() {
   // Content render
   // ---------------------------------------------------------------------------
   const renderContent = () => {
-    if (isLoading || isTodayMetricsLoading) {
-      return (
-        <div className="space-y-6">
-          {/* Mini stat cards Skeleton */}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Card key={i} className="p-3">
-                <CardContent className="flex flex-col items-start gap-1.5 p-0">
-                  <Skeleton className="h-7 w-7 rounded-full" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-6 w-16" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Charts Skeleton — Bar Chart and Pie Chart Side by Side */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-5 w-48" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-80 w-full" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-5 w-48" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-80 w-full" />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Appointment Status Skeleton */}
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-56" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-64 w-full" />
-            </CardContent>
-          </Card>
-
-          {/* Top Procedures Skeleton */}
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-64" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-72 w-full" />
-            </CardContent>
-          </Card>
-
-          {/* Table Skeleton */}
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-48" />
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead className="w-10 text-center uppercase text-xs">#</TableHead>
-                    <TableHead className="uppercase text-xs">HN</TableHead>
-                    <TableHead className="uppercase text-xs">ชื่อผู้ป่วย</TableHead>
-                    <TableHead className="uppercase text-xs">หัตถการ</TableHead>
-                    <TableHead className="uppercase text-xs">ทันตแพทย์</TableHead>
-                    <TableHead className="uppercase text-xs">การรับบริการ</TableHead>
-                    <TableHead className="uppercase text-xs">วันที่ตรวจ</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-center">
-                        <Skeleton className="h-4 w-4 mx-auto" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-12" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-32" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-24" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-28" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-20" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-20" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-      )
-    }
-
     return (
       <div className="space-y-6">
         {/* KPI row */}
@@ -651,7 +537,12 @@ export default function Dentistry() {
                       {stat.label}
                     </p>
                   </div>
-                  {!isConnected || (isError && stat.label === 'จำนวนหัตถการ') || (isTodayMetricsError && (stat.label === 'ผู้ป่วยนอก' || stat.label === 'ผู้ป่วยใน')) ? (
+                  {(stat.label === 'จำนวนหัตถการ' && isLoading) || ((stat.label === 'ผู้ป่วยนอก' || stat.label === 'ผู้ป่วยใน') && isTodayMetricsLoading) ? (
+                    <div className="pt-1 space-y-1.5">
+                      <Skeleton className="h-6 w-24" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  ) : !isConnected || (isError && stat.label === 'จำนวนหัตถการ') || (isTodayMetricsError && (stat.label === 'ผู้ป่วยนอก' || stat.label === 'ผู้ป่วยใน')) ? (
                     <div className="pt-1">
                       {stat.label === 'จำนวนหัตถการ' ? renderRetryAction(execute, error) : renderRetryAction(executeTodayMetrics, todayMetricsError)}
                     </div>
@@ -779,8 +670,12 @@ export default function Dentistry() {
               )}
             </CardHeader>
             <CardContent>
-              {!isConnected || isError ? (
-                renderRetryAction(execute, error)
+              {isTopProceduresLoading ? (
+                <div className="flex h-[560px] items-center justify-center">
+                  <Skeleton className="h-[520px] w-full" />
+                </div>
+              ) : !isConnected || isTopProceduresError ? (
+                renderRetryAction(executeTopProcedures, topProceduresError)
               ) : topProceduresChartData.length > 0 ? (
                 <>
                   <ResponsiveContainer width="100%" height={Math.max(topProceduresChartData.length * 42 + 20, 560)}>
@@ -957,7 +852,11 @@ export default function Dentistry() {
               )}
             </CardHeader>
             <CardContent>
-              {!isConnected || isError ? (
+              {isLoading ? (
+                <div className="flex h-[280px] items-center justify-center">
+                  <Skeleton className="h-[240px] w-full" />
+                </div>
+              ) : !isConnected || isError ? (
                 renderRetryAction(execute, error)
               ) : insuranceChartData.length > 0 ? (
                 <div className="flex items-center gap-4">
@@ -1231,7 +1130,11 @@ export default function Dentistry() {
               )}
             </CardHeader>
             <CardContent>
-              {!isConnected || isError ? (
+              {isLoading ? (
+                <div className="flex h-[280px] items-center justify-center">
+                  <Skeleton className="h-[240px] w-full" />
+                </div>
+              ) : !isConnected || isError ? (
                 renderRetryAction(execute, error)
               ) : chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
@@ -1299,9 +1202,15 @@ export default function Dentistry() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {!isConnected || isError ? (
-              renderRetryAction(execute, error)
-            ) : dentistry && dentistry.cases.length > 0 ? (
+            {isCasesPageLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : !isConnected || isCasesPageError ? (
+              renderRetryAction(executeCasesPage, casesPageError)
+            ) : totalCaseCount > 0 ? (
               <>
                 <div className="overflow-x-auto">
                   <Table>
@@ -1370,8 +1279,8 @@ export default function Dentistry() {
                 <div className="flex items-center justify-between mt-4 pt-4 border-t">
                   <p className="text-xs text-muted-foreground">
                     แสดง {pagedCases.length > 0 ? currentPage * PAGE_SIZE + 1 : 0} ถึง{' '}
-                    {Math.min((currentPage + 1) * PAGE_SIZE, dentistry?.cases.length ?? 0)} จาก{' '}
-                    <span className="font-semibold">{dentistry?.cases.length ?? 0}</span> เคส
+                    {Math.min((currentPage + 1) * PAGE_SIZE, totalCaseCount)} จาก{' '}
+                    <span className="font-semibold">{totalCaseCount}</span> เคส
                   </p>
                   <div className="flex items-center gap-2">
                     <Button

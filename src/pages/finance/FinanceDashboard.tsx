@@ -1,51 +1,43 @@
 // =============================================================================
-// งานแพทย์ทางเลือก - Group Dashboard
+// การเงินและรายได้ - Group Dashboard
 // =============================================================================
 
 import { Link } from 'react-router-dom'
-import { Sprout, Activity, Leaf, Sun, ChevronRight } from 'lucide-react'
+import { Banknote, Receipt, ShieldCheck, ChevronRight } from 'lucide-react'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const SUB_PAGES = [
   {
-    label: 'งานเวชศาสตร์ฟื้นฟู',
-    desc: 'สถิติการรักษาด้วยกายภาพบำบัดและเวชศาสตร์ฟื้นฟู',
-    path: '/alternative/physiotherapy',
-    icon: Activity,
-    color: 'text-emerald-600',
-    bg: 'bg-emerald-500/10',
+    label: 'ค่าใช้จ่ายในการรักษา',
+    desc: 'สถิติค่าใช้จ่ายและรายได้จากการรักษาพยาบาล',
+    path: '/finance/treatment-cost',
+    icon: Receipt,
+    color: 'text-blue-600',
+    bg: 'bg-blue-500/10',
   },
   {
-    label: 'งานแพทย์แผนไทย',
-    desc: 'บริการแพทย์แผนไทยและแพทย์ทางเลือก',
-    path: '/alternative/thai-traditional',
-    icon: Leaf,
-    color: 'text-green-600',
-    bg: 'bg-green-500/10',
-  },
-  {
-    label: 'งานแพทย์แผนจีน',
-    desc: 'บริการแพทย์แผนจีนและการฝังเข็ม',
-    path: '/alternative/chinese-medicine',
-    icon: Sun,
-    color: 'text-amber-600',
-    bg: 'bg-amber-500/10',
+    label: 'งานประกันรายได้',
+    desc: 'ข้อมูลการเบิกจ่ายและประกันสุขภาพ',
+    path: '/finance/insurance',
+    icon: ShieldCheck,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-500/10',
   },
 ]
 
-export default function AlternativeDashboard() {
+export default function FinanceDashboard() {
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 shadow-md ring-1 ring-primary/20">
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/30 to-transparent" />
-          <Sprout className="relative h-10 w-10 text-primary drop-shadow-sm" />
+          <Banknote className="relative h-10 w-10 text-primary drop-shadow-sm" />
         </div>
         <div className="space-y-0.5">
-          <h1 className="text-3xl font-bold tracking-tight">งานแพทย์ทางเลือก</h1>
+          <h1 className="text-3xl font-bold tracking-tight">การเงินและรายได้</h1>
           <p className="text-base text-muted-foreground">
-            ภาพรวมระบบงานแพทย์ทางเลือก — กายภาพบำบัด แพทย์แผนไทย และแพทย์แผนจีน
+            ภาพรวมการเงินและรายได้ — ค่าใช้จ่ายในการรักษาและงานประกันรายได้
           </p>
         </div>
       </div>

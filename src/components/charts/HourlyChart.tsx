@@ -115,6 +115,7 @@ export function HourlyChart({
               allowDecimals={false}
             />
             <Tooltip
+              cursor={false}
               labelFormatter={((hour: unknown) => formatHourLabel(Number(hour))) as never}
               formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
               contentStyle={{

@@ -240,14 +240,14 @@ export async function getIpdWardDistribution(
     yesterdayTotalCount = 0;
   }
 
-  // Some HOSxP installations might not include the `ward` table or may have
-  // different column names. We attempt the richer join first, then fallback
-  // to a safer query that only relies on the `ipt` table.
+  // Use LEFT JOIN so patients whose ward code has no match in the `ward` table
+  // are still counted (grouped as "ไม่ระบุตึก"). This ensures the sum across
+  // all ward rows equals getIpdPatientCount() which counts all confirm_discharge='N'.
   const joinSql =
-    `SELECT w.ward as wardcode, w.name as wardname, COUNT(DISTINCT ipt.an) as onward_count ` +
-    `FROM ward w, ipt ` +
-    `WHERE w.ward = ipt.ward AND ipt.confirm_discharge = 'N' ` +
-    `GROUP BY w.ward, wardname ` +
+    `SELECT w.ward as wardcode, COALESCE(w.name, CONCAT('ward: ', ipt.ward), 'ไม่ระบุตึก') as wardname, COUNT(DISTINCT ipt.an) as onward_count ` +
+    `FROM ipt LEFT JOIN ward w ON w.ward = ipt.ward ` +
+    `WHERE ipt.confirm_discharge = 'N' ` +
+    `GROUP BY ipt.ward, w.ward, wardname ` +
     `ORDER BY onward_count DESC`;
 
   try {
@@ -268,9 +268,9 @@ export async function getIpdWardDistribution(
       percentageChange: percentageChange,
     }));
   } catch {
-    // Fallback: keep the ward code, no bed count.
+    // Fallback: group directly from ipt; includes all patients regardless of ward.
     const fallbackSql =
-      `SELECT ward as wardcode, COALESCE(ward, 'ไม่ระบุ') as ward_name, COUNT(DISTINCT an) as patient_count ` +
+      `SELECT ward as wardcode, COALESCE(ward, 'ไม่ระบุตึก') as ward_name, COUNT(DISTINCT an) as patient_count ` +
       `FROM ipt ` +
       `WHERE confirm_discharge = 'N' ` +
       `GROUP BY ward ` +
@@ -994,7 +994,7 @@ export async function getVisitsByDayOfWeek(
 }
 
 /**
- * Top 5 departments by visit count for a date range.
+ * Top 10 first-reception departments (ovst.main_dep) by visit count for a date range.
  */
 export async function getTopDepartmentsForRange(
   config: ConnectionConfig,
@@ -1004,11 +1004,11 @@ export async function getTopDepartmentsForRange(
 ): Promise<DepartmentWorkload[]> {
   const sql =
     `SELECT k.depcode as department_code, k.department as department_name, COUNT(*) as visit_count ` +
-    `FROM ovst o LEFT JOIN kskdepartment k ON o.cur_dep = k.depcode ` +
+    `FROM ovst o LEFT JOIN kskdepartment k ON o.main_dep = k.depcode ` +
     `WHERE o.vstdate >= '${startDate}' AND o.vstdate <= '${endDate}' ` +
     `GROUP BY k.depcode, k.department ` +
     `ORDER BY visit_count DESC ` +
-    `LIMIT 5`;
+    `LIMIT 10`;
   const response = await executeSqlViaApi(sql, config);
   return parseQueryResponse(response, (row) => ({
     departmentCode: String(row['department_code'] ?? ''),
@@ -1023,27 +1023,26 @@ export async function getTopDepartmentsForRange(
 
 /**
  * Top 10 diagnoses by visit count for a date range.
- * Joins ovstdiag with icd101 for Thai diagnosis names.
+ * Groups by ICD-10 chapter (first 3 chars) joined with icd101 for Thai disease group names.
  */
 export async function getTopDiagnoses(
   config: ConnectionConfig,
   _dbType: DatabaseType,
   startDate: string,
   endDate: string,
-): Promise<{ icd10: string; diagnosisName: string; visitCount: number }[]> {
+): Promise<{ name: string; cc: number }[]> {
   const sql =
-    `SELECT od.icd10, COALESCE(i.tname, i.name, od.icd10) as diagnosis_name, COUNT(*) as visit_count ` +
-    `FROM ovstdiag od ` +
-    `LEFT JOIN icd101 i ON od.icd10 = i.code ` +
-    `WHERE od.vstdate >= '${startDate}' AND od.vstdate <= '${endDate}' ` +
-    `GROUP BY od.icd10, i.tname, i.name ` +
-    `ORDER BY visit_count DESC ` +
+    `SELECT ic.name, COUNT(*) as cc ` +
+    `FROM ovstdiag od, icd101 ic ` +
+    `WHERE LEFT(od.icd10, 3) = ic.code ` +
+    `AND od.vstdate BETWEEN '${startDate}' AND '${endDate}' ` +
+    `GROUP BY ic.name ` +
+    `ORDER BY cc DESC ` +
     `LIMIT 10`;
   const response = await executeSqlViaApi(sql, config);
   return parseQueryResponse(response, (row) => ({
-    icd10: String(row['icd10'] ?? ''),
-    diagnosisName: String(row['diagnosis_name'] ?? ''),
-    visitCount: Number(row['visit_count'] ?? 0),
+    name: String(row['name'] ?? ''),
+    cc: Number(row['cc'] ?? 0),
   }));
 }
 

@@ -7,6 +7,7 @@ import { Link, useLocation } from 'react-router-dom'
 import {
   Activity,
   Baby,
+  Banknote,
   Bed,
   CalendarCheck2,
   ChevronDown,
@@ -19,9 +20,11 @@ import {
   Microscope,
   Package,
   Pill,
+  Receipt,
   Scan,
   Scissors,
   Send,
+  ShieldCheck,
   Siren,
   Sprout,
   Star,
@@ -116,9 +119,18 @@ const NAV_ITEMS: NavItem[] = [
     path: '/alternative',
     icon: Sprout,
     children: [
-      { label: 'งานกายภาพบำบัด', path: '/alternative/physiotherapy', icon: Activity },
+      { label: 'งานเวชศาสตร์ฟื้นฟู', path: '/alternative/physiotherapy', icon: Activity },
       { label: 'งานแพทย์แผนไทย', path: '/alternative/thai-traditional', icon: Leaf },
       { label: 'งานแพทย์แผนจีน', path: '/alternative/chinese-medicine', icon: Sun },
+    ],
+  },
+  {
+    label: 'การเงินและรายได้',
+    path: '/finance',
+    icon: Banknote,
+    children: [
+      { label: 'ค่าใช้จ่ายในการรักษา', path: '/finance/treatment-cost', icon: Receipt },
+      { label: 'งานประกันรายได้', path: '/finance/insurance', icon: ShieldCheck },
     ],
   },
 ]

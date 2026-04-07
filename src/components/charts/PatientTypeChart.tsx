@@ -134,7 +134,7 @@ export function PatientTypeChart({
             className="text-muted-foreground"
             width={150}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip />} cursor={false} />
           <Bar
             dataKey="visitCount"
             fill="hsl(var(--chart-5))"

@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(\"d:\\\\Tha\\\\claude\\\\BMSsessionID\\\\bms-session-id-demo-dashboard\\\\src\\\\services\\\\kpiService.ts\")",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(cmd /c \"cd /d d:\\\\Tha\\\\claude\\\\BMSsessionID\\\\bms-session-id-demo-dashboard && npx tsc --noEmit 2>&1\")"
     ]
   }
 }

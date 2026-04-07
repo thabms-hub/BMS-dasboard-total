@@ -64,16 +64,22 @@ export function formatDateISO(date: Date | string): string {
 }
 
 /**
- * Returns the ISO date strings for a range spanning the last N days up to today.
+ * Returns the ISO date strings for an inclusive date range of exactly N days ending today.
  *
- * @example getDateRange(7) // { startDate: "2026-03-10", endDate: "2026-03-17" }
+ * Both start and end dates are counted, so the range always spans exactly `days` days.
  *
- * @param days - Number of days to look back from today.
+ * @example getDateRange(7)  // today=2026-03-17 → { startDate: "2026-03-11", endDate: "2026-03-17" } (7 days)
+ * @example getDateRange(30) // today=2026-03-17 → { startDate: "2026-02-16", endDate: "2026-03-17" } (30 days)
+ * @example getDateRange(0)  // { startDate: today, endDate: today } (today only)
+ *
+ * @param days - Total number of days in the range (inclusive of both endpoints).
  * @returns An object with `startDate` and `endDate` in `'yyyy-MM-dd'` format.
  */
 export function getDateRange(days: number): { startDate: string; endDate: string } {
   const today = new Date();
-  const start = subDays(today, days);
+  // Subtract (days - 1) so both start and end are counted: a range of N days
+  // has N-1 gaps between them. Special-case days=0 → today only (same as days=1).
+  const start = subDays(today, Math.max(0, days - 1));
 
   return {
     startDate: formatDateISO(start),

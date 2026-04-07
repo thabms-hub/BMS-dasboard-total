@@ -22,7 +22,6 @@ import {
 } from '@/services/kpiService'
 import type { VisitTrend, HourlyDistribution, DepartmentWorkload } from '@/types'
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker'
-import { HourlyChart } from '@/components/charts/HourlyChart'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -94,6 +93,7 @@ export default function Trends() {
   const { startDate, endDate, setRange } = usePersistentDateRange('trends', 30)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
+
   const isReady = connectionConfig !== null && session !== null
 
   // --- Existing Queries ---
@@ -103,7 +103,7 @@ export default function Trends() {
       enabled: isReady,
     })
 
-  const { data: hourlyData, isLoading: isHourlyLoading, execute: fetchHourly, reset: resetHourly } =
+  const { data: hourlyData, isLoading: isHourlyLoading, reset: resetHourly } =
     useQuery<HourlyDistribution[]>({
       queryFn: useCallback(() => getHourlyDistribution(connectionConfig!, session!.databaseType, selectedDate!), [connectionConfig, session, selectedDate]),
       enabled: isReady && selectedDate !== null,
@@ -129,7 +129,7 @@ export default function Trends() {
 
   // --- New Queries: Diagnosis, Medications, Death ---
   const { data: topDiagnosesData, isLoading: isDiagnosesLoading } =
-    useQuery<{ icd10: string; diagnosisName: string; visitCount: number }[]>({
+    useQuery<{ name: string; cc: number }[]>({
       queryFn: useCallback(() => getTopDiagnoses(connectionConfig!, session!.databaseType, startDate, endDate), [connectionConfig, session, startDate, endDate]),
       enabled: isReady,
     })
@@ -175,8 +175,7 @@ export default function Trends() {
 
   const handleDateClick = useCallback((date: string) => {
     setSelectedDate(date)
-    if (connectionConfig && session) fetchHourly()
-  }, [connectionConfig, session, fetchHourly])
+  }, [])
 
   const tooltipStyle = {
     borderRadius: '8px',
@@ -188,15 +187,11 @@ export default function Trends() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      {/* 1. Header */}
-      <div>
+      {/* 1. Header + DateRangePicker */}
+      <div className="flex flex-col gap-3">
         <h1 className="text-2xl font-bold tracking-tight">แนวโน้มการเข้ารับบริการ</h1>
-        <p className="text-sm text-muted-foreground">
-          วิเคราะห์จำนวนการเข้ารับบริการรายวัน รายสัปดาห์ และรายเดือน พร้อมสรุปแผนกยอดนิยม การวินิจฉัย ค่ายา และสถิติการเสียชีวิต
-        </p>
+        <DateRangePicker startDate={startDate} endDate={endDate} onRangeChange={handleRangeChange} isLoading={isDailyLoading} />
       </div>
-
-      <DateRangePicker startDate={startDate} endDate={endDate} onRangeChange={handleRangeChange} isLoading={isDailyLoading} />
 
       {isDailyError && dailyError && (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4">
@@ -213,7 +208,7 @@ export default function Trends() {
           { label: 'วันที่มีผู้เข้ารับบริการมากที่สุด', desc: trendSummary.peakDay?.date ? format(parseISO(trendSummary.peakDay.date), 'd MMM yyyy', { locale: th }) : '-', value: trendSummary.peakDay?.count ?? 0, icon: ArrowUp, color: 'red', loading: isDailyLoading },
           { label: 'วันที่มีผู้เข้ารับบริการน้อยที่สุด', desc: minDay?.date ? format(parseISO(minDay.date), 'd MMM yyyy', { locale: th }) : '-', value: minDay?.visitCount ?? 0, icon: ArrowDown, color: 'purple', loading: isDailyLoading },
           { label: 'ค่าใช้จ่ายผู้ป่วยทั้งหมด', desc: '', value: `฿${formatLargeNumber(patientExpense?.totalExpense ?? 0)}`, icon: Receipt, color: 'teal', loading: isPatientExpenseLoading },
-          { label: 'ค่ายาทั้งหมด', desc: '', value: `฿${formatLargeNumber(medCostSummary?.totalCost ?? 0)}`, icon: Banknote, color: 'orange', loading: isMedCostLoading },
+          { label: 'ค่ายาทั้งหมด', desc: '', value: `฿${formatLargeNumber(medCostSummary?.totalCost ?? 0)}`, icon: Pill, color: 'orange', loading: isMedCostLoading },
         ].map((card) => (
           <Card key={card.label} className="card-shadow-hover px-4 pt-3 pb-4">
             <CardContent className="p-0 flex flex-col gap-2">
@@ -236,17 +231,21 @@ export default function Trends() {
         ))}
       </div>
 
-      {/* 3. Daily Trend — AREA CHART (gradient fill) */}
+      {/* 3. Daily Trend — AREA CHART + Hourly drill-down below */}
       <Card className="card-shadow">
         <CardHeader>
           <CardTitle className="text-sm font-medium">แนวโน้มการเข้ารับบริการรายวัน</CardTitle>
-          <CardDescription>คลิกที่จุดข้อมูลเพื่อดูรายละเอียดรายชั่วโมง</CardDescription>
+          <CardDescription>
+            {selectedDate
+              ? `เลือกวันที่ ${formatDateLabel(selectedDate)} — ดูรายละเอียดรายชั่วโมงด้านล่าง`
+              : 'คลิกที่จุดข้อมูลในกราฟเพื่อดูรายละเอียดรายชั่วโมง'}
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           {isDailyLoading ? <Skeleton className="h-[300px] w-full" /> :
            !dailyData || dailyData.length === 0 ? <EmptyState title="ไม่มีข้อมูลการเข้ารับบริการ" /> : (
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={dailyData} onClick={(state: Record<string, unknown>) => {
+              <AreaChart data={dailyData} style={{ cursor: 'pointer' }} onClick={(state: Record<string, unknown>) => {
                 const payload = state?.activePayload as Array<{ payload: { date: string } }> | undefined
                 if (payload?.[0]?.payload) handleDateClick(payload[0].payload.date)
               }}>
@@ -268,16 +267,46 @@ export default function Trends() {
               </AreaChart>
             </ResponsiveContainer>
           )}
+
+          {/* Hourly drill-down — shown inline when a date is selected */}
+          {selectedDate && (
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium">รายละเอียดรายชั่วโมง — {formatDateLabel(selectedDate)}</p>
+                <Button variant="outline" size="sm" onClick={() => { setSelectedDate(null); resetHourly() }}>ล้างการเลือก</Button>
+              </div>
+              {isHourlyLoading ? (
+                <Skeleton className="h-[240px] w-full" />
+              ) : !hourlyData || hourlyData.length === 0 ? (
+                <EmptyState title="ไม่มีข้อมูลรายชั่วโมงสำหรับวันที่นี้" />
+              ) : (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={hourlyData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="hour" tickFormatter={(h: number) => `${String(h).padStart(2,'0')}:00`} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip
+                      cursor={false}
+                      labelFormatter={((h: unknown) => `${String(Number(h)).padStart(2,'0')}:00`) as never}
+                      formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
+                      contentStyle={tooltipStyle}
+                    />
+                    <Bar dataKey="visitCount" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* 4. Two-column: Radar (day-of-week) + Horizontal Bar (top depts) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Day of week — RADAR CHART */}
-        <Card className="card-shadow">
+      {/* 4. 12-col: Radar (2) + TOP10 (4) + กลุ่มโรค (6) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Day of week — RADAR CHART (col-3) */}
+        <Card className="card-shadow lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-sm font-medium">การเข้ารับบริการตามวันในสัปดาห์</CardTitle>
-            <CardDescription>รูปแบบการกระจายตัวของผู้เข้ารับบริการแยกตามวัน</CardDescription>
+            <CardDescription>รูปแบบการกระจายตัวแยกตามวัน</CardDescription>
           </CardHeader>
           <CardContent>
             {isDowLoading ? <Skeleton className="h-[280px] w-full" /> :
@@ -285,8 +314,8 @@ export default function Trends() {
               <ResponsiveContainer width="100%" height={280}>
                 <RadarChart data={dowData} cx="50%" cy="50%" outerRadius="70%">
                   <PolarGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <PolarAngleAxis dataKey="dayName" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                  <PolarRadiusAxis tick={{ fontSize: 10 }} />
+                  <PolarAngleAxis dataKey="dayName" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <PolarRadiusAxis tick={{ fontSize: 9 }} />
                   <Tooltip
                     formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
                     contentStyle={tooltipStyle}
@@ -298,68 +327,79 @@ export default function Trends() {
           </CardContent>
         </Card>
 
-        {/* Top departments — HORIZONTAL BAR */}
-        <Card className="card-shadow">
+        {/* TOP10 จุดบริการแรกรับ (col-3) — numbered list single page */}
+        <Card className="card-shadow lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-sm font-medium">แผนกยอดนิยม</CardTitle>
-            <CardDescription>5 แผนกที่มีผู้เข้ารับบริการมากที่สุดในช่วงเวลาที่เลือก</CardDescription>
+            <CardTitle className="text-sm font-medium">TOP10 จุดบริการแรกรับ</CardTitle>
+            <CardDescription>เรียงตามจำนวนผู้เข้ารับบริการ (ตามที่ส่งตรวจ)</CardDescription>
           </CardHeader>
           <CardContent>
-            {isTopDeptsLoading ? <Skeleton className="h-[250px] w-full" /> :
-             !topDeptsData || topDeptsData.length === 0 ? <EmptyState title="ไม่มีข้อมูลแผนก" /> : (
-              <ResponsiveContainer width="100%" height={Math.max(200, topDeptsData.length * 50)}>
-                <BarChart data={topDeptsData} layout="vertical">
+            {isTopDeptsLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Skeleton className="h-5 w-5 rounded-full shrink-0" />
+                    <Skeleton className="h-3 flex-1" />
+                    <Skeleton className="h-3 w-10 shrink-0" />
+                  </div>
+                ))}
+              </div>
+            ) : !topDeptsData || topDeptsData.length === 0 ? (
+              <EmptyState title="ไม่มีข้อมูลแผนก" />
+            ) : (
+              <div className="space-y-1.5">
+                {topDeptsData.slice(0, 10).map((dept, index) => (
+                  <div key={dept.departmentCode || dept.departmentName} className="flex items-center gap-2">
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">
+                      {index + 1}
+                    </div>
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium">{dept.departmentName}</span>
+                    <span className="shrink-0 text-xs font-semibold text-muted-foreground">{dept.visitCount.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* กลุ่มโรคที่พบบ่อย (col-6) */}
+        <Card className="card-shadow lg:col-span-6">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              กลุ่มโรคที่พบบ่อย
+            </CardTitle>
+            <CardDescription>10 กลุ่มโรค (ICD10) ที่มีการวินิจฉัยมากที่สุดในช่วงเวลาที่เลือก</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isDiagnosesLoading ? <Skeleton className="h-[300px] w-full" /> :
+             !topDiagnosesData || topDiagnosesData.length === 0 ? <EmptyState title="ไม่มีข้อมูลการวินิจฉัย" /> : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={topDiagnosesData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <YAxis dataKey="departmentName" type="category" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={140} />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    tick={{ fontSize: 10 }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={180}
+                    tickFormatter={(value: string) => value.length > 26 ? `${value.slice(0, 26)}...` : value}
+                  />
                   <Tooltip
+                    cursor={false}
                     formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
+                    labelFormatter={(label: unknown) => String(label)}
                     contentStyle={tooltipStyle}
                   />
-                  <Bar dataKey="visitCount" fill="hsl(var(--chart-4))" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="cc" fill="hsl(var(--chart-1))" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* 7. กลุ่มโรคที่พบบ่อย — Top Diagnoses Horizontal Bar */}
-      <Card className="card-shadow">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            กลุ่มโรคที่พบบ่อย
-          </CardTitle>
-          <CardDescription>10 กลุ่มโรค (ICD10) ที่มีการวินิจฉัยมากที่สุดในช่วงเวลาที่เลือก</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isDiagnosesLoading ? <Skeleton className="h-[400px] w-full" /> :
-           !topDiagnosesData || topDiagnosesData.length === 0 ? <EmptyState title="ไม่มีข้อมูลการวินิจฉัย" /> : (
-            <ResponsiveContainer width="100%" height={Math.max(300, topDiagnosesData.length * 45)}>
-              <BarChart data={topDiagnosesData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <YAxis
-                  dataKey="diagnosisName"
-                  type="category"
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={200}
-                  tickFormatter={(value: string) => value.length > 30 ? `${value.slice(0, 30)}...` : value}
-                />
-                <Tooltip
-                  formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
-                  labelFormatter={(label: unknown) => String(label)}
-                  contentStyle={tooltipStyle}
-                />
-                <Bar dataKey="visitCount" fill="hsl(var(--chart-1))" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
 
       {/* 8. ค่าใช้จ่ายยาและเวชภัณฑ์ — Medication Costs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -436,6 +476,7 @@ export default function Trends() {
                     tickFormatter={(value: string) => value.length > 25 ? `${value.slice(0, 25)}...` : value}
                   />
                   <Tooltip
+                    cursor={false}
                     formatter={((value: unknown, name: unknown) => {
                       if (String(name) === 'totalCost') return [`${Number(value).toLocaleString()} บาท`, 'ค่าใช้จ่าย']
                       return [Number(value).toLocaleString(), String(name)]
@@ -450,21 +491,6 @@ export default function Trends() {
           </CardContent>
         </Card>
       </div>
-
-      {/* 5. Hourly drill-down */}
-      {selectedDate && (
-        <Card className="card-shadow border-l-4 border-l-blue-500">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">การกระจายรายชั่วโมงสำหรับ {selectedDate}</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => { setSelectedDate(null); resetHourly() }}>ล้างการเลือก</Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <HourlyChart data={hourlyData ?? []} isLoading={isHourlyLoading} selectedDate={selectedDate} />
-          </CardContent>
-        </Card>
-      )}
 
       {/* 6. Monthly summary — LINE CHART */}
       <Card className="card-shadow">

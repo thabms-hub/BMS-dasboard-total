@@ -143,7 +143,7 @@ export function AgeGroupChart({
             className="text-muted-foreground"
             allowDecimals={false}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip />} cursor={false} />
           <Bar
             dataKey="count"
             fill="hsl(var(--chart-4))"

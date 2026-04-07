@@ -41,6 +41,11 @@ const SupportLab = lazy(() => import('@/pages/support/SupportLab'))
 const SupportXray = lazy(() => import('@/pages/support/SupportXray'))
 const SupportOr = lazy(() => import('@/pages/support/SupportOr'))
 
+// การเงินและรายได้
+const FinanceDashboard = lazy(() => import('@/pages/finance/FinanceDashboard'))
+const FinanceTreatmentCost = lazy(() => import('@/pages/finance/FinanceTreatmentCost'))
+const FinanceInsurance = lazy(() => import('@/pages/finance/FinanceInsurance'))
+
 function AppRoutes() {
   return (
     <Suspense fallback={<LoadingSpinner size="lg" message="กำลังโหลดหน้า..." className="min-h-[50vh]" />}>
@@ -79,6 +84,11 @@ function AppRoutes() {
         <Route path="/support/lab" element={<SupportLab />} />
         <Route path="/support/xray" element={<SupportXray />} />
         <Route path="/support/or" element={<SupportOr />} />
+
+        {/* การเงินและรายได้ */}
+        <Route path="/finance" element={<FinanceDashboard />} />
+        <Route path="/finance/treatment-cost" element={<FinanceTreatmentCost />} />
+        <Route path="/finance/insurance" element={<FinanceInsurance />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

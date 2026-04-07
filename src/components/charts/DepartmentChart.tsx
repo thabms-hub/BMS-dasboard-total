@@ -117,6 +117,7 @@ export function DepartmentChart({
               tickFormatter={(value: string) => truncateName(value)}
             />
             <Tooltip
+              cursor={false}
               formatter={((value: unknown) => [Number(value).toLocaleString(), 'ครั้ง']) as never}
               contentStyle={{
                 borderRadius: '8px',

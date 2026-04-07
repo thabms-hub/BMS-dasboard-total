@@ -611,8 +611,8 @@ export default function Overview() {
         />
 
         {/* Weekly Visit Trend (5/12) */}
-        <Card ref={weeklyTrendRef} className="lg:col-span-5">
-          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <Card ref={weeklyTrendRef} className="lg:col-span-5 flex flex-col">
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 shrink-0">
             <div>
               <CardTitle className="text-lg">การเข้ารับบริการสัปดาห์นี้</CardTitle>
               <CardDescription>
@@ -627,13 +627,13 @@ export default function Overview() {
               title="การเข้ารับบริการสัปดาห์นี้"
             />
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex flex-col min-h-0 pb-4">
             {isTrendLoading ? (
-              <div className="flex h-[200px] items-center justify-center">
-                <Skeleton className="h-[180px] w-full" />
+              <div className="flex flex-1 items-center justify-center">
+                <Skeleton className="h-full w-full" />
               </div>
             ) : weeklyTrend && weeklyTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={weeklyTrend}>
                   <defs>
                     <linearGradient id="weeklyVisitGradient" x1="0" y1="0" x2="0" y2="1">
@@ -682,7 +682,7 @@ export default function Overview() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
                 ไม่มีข้อมูลการเข้ารับบริการใน 7 วันที่ผ่านมา
               </div>
             )}

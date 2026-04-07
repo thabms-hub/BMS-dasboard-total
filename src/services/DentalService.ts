@@ -9,9 +9,11 @@ import type {
   DentalExpenseByPaymentType,
   DentalServicePlaceCount,
   DentistryCase,
+  DentistryCasesPage,
   DentistryDoctorPerformance,
   DentistryInsuranceDistribution,
   DentistryServiceTypeCount,
+  DentistryTopProcedureItem,
   DentistryVisitTypeDistribution,
   DentistrySummary,
   SqlApiResponse,
@@ -81,6 +83,102 @@ export async function getDentistryCases(
     patientName: String(row['ptname'] ?? ''),
     visitTypeName: String(row['visit_type_name'] ?? ''),
     pttype: String(row['pttype'] ?? 'ไม่ระบุ'),
+  }));
+}
+
+/**
+ * Get dentistry cases with server-side pagination for the detail table.
+ */
+export async function getDentistryCasesPage(
+  config: ConnectionConfig,
+  startDate: string,
+  endDate: string,
+  page: number,
+  pageSize: number,
+): Promise<DentistryCasesPage> {
+  const safePage = Math.max(0, page);
+  const safePageSize = Math.max(1, pageSize);
+  const offset = safePage * safePageSize;
+
+  const countSql =
+    `SELECT COUNT(*) AS total_count
+     FROM dtmain d1
+     WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'`;
+
+  const dataSql =
+    `SELECT
+      d1.vn,
+      d1.an,
+      o.hn,
+      o.vstdate,
+      d2.code AS ttcode,
+      COALESCE(d2.name, 'ไม่ระบุชื่อหัตถการ') AS tm_name,
+      d3.name AS doctor_name,
+      d4.name AS helper_name,
+      CONCAT(p.pname, p.fname, ' ', p.lname) AS ptname,
+      v.visit_type_name
+    FROM dtmain d1
+      LEFT OUTER JOIN ovst o ON o.vn = d1.vn
+      LEFT OUTER JOIN dttm d2 ON d2.code = d1.tmcode
+      LEFT OUTER JOIN visit_type v ON v.visit_type = o.visit_type
+      LEFT OUTER JOIN doctor d3 ON d3.code = d1.doctor
+      LEFT OUTER JOIN doctor d4 ON d4.code = d1.doctor_helper
+      LEFT OUTER JOIN patient p ON p.hn = o.hn
+    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'
+    ORDER BY d1.vstdate, d1.vn
+    LIMIT ${safePageSize} OFFSET ${offset}`;
+
+  const [countResponse, dataResponse] = await Promise.all([
+    executeSqlViaApi(countSql, config),
+    executeSqlViaApi(dataSql, config),
+  ]);
+
+  const countRows = parseQueryResponse(countResponse, (row) => Number(row['total_count'] ?? 0));
+  const totalCount = countRows[0] ?? 0;
+
+  const cases = parseQueryResponse(dataResponse, (row) => ({
+    hn: String(row['hn'] ?? ''),
+    vn: String(row['vn'] ?? ''),
+    vstdate: String(row['vstdate'] ?? ''),
+    ttcode: String(row['ttcode'] ?? ''),
+    an: String(row['an'] ?? ''),
+    tmName: String(row['tm_name'] ?? ''),
+    doctorName: String(row['doctor_name'] ?? 'ไม่ระบุ'),
+    helperName: String(row['helper_name'] ?? ''),
+    patientName: String(row['ptname'] ?? ''),
+    visitTypeName: String(row['visit_type_name'] ?? ''),
+    pttype: String(row['pttype'] ?? 'ไม่ระบุ'),
+  }));
+
+  return { cases, totalCount };
+}
+
+/**
+ * Get top 10 dentistry procedures directly from SQL aggregation.
+ */
+export async function getDentistryTopProcedures(
+  config: ConnectionConfig,
+  startDate: string,
+  endDate: string,
+): Promise<DentistryTopProcedureItem[]> {
+  const sql =
+    `SELECT
+      COALESCE(d1.tmcode, '') AS code,
+      COALESCE(d2.name, 'ไม่ระบุชื่อหัตถการ') AS procedure_name,
+      COUNT(*) AS procedure_count
+    FROM dtmain d1
+    LEFT JOIN dttm d2 ON d2.code = d1.tmcode
+    WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'
+      AND COALESCE(d1.tmcode, '') <> ''
+    GROUP BY COALESCE(d1.tmcode, ''), COALESCE(d2.name, 'ไม่ระบุชื่อหัตถการ')
+    ORDER BY procedure_count DESC
+    LIMIT 10`;
+
+  const response = await executeSqlViaApi(sql, config);
+  return parseQueryResponse(response, (row) => ({
+    code: String(row['code'] ?? ''),
+    procedureName: String(row['procedure_name'] ?? 'ไม่ระบุชื่อหัตถการ'),
+    count: Number(row['procedure_count'] ?? 0),
   }));
 }
 
@@ -214,59 +312,20 @@ async function getDentistrySummaryMetrics(
       LEFT OUTER JOIN ovst o ON o.vn = d1.vn
     WHERE d1.vstdate >= '${startDate}' AND d1.vstdate <= '${endDate}'`;
 
-  const yesterday = new Date(new Date().getTime() - 86400000);
-  const yesterdayDate = yesterday.toISOString().split('T')[0];
-  const yesterdaySql =
-    `SELECT
-      COUNT(DISTINCT CASE WHEN d1.an IS NULL OR d1.an = '' THEN d1.vn END) AS total_visits,
-      COUNT(CASE WHEN d1.an IS NOT NULL AND d1.an != '' THEN 1 END) AS total_ipd_cases
-    FROM dtmain d1
-      LEFT OUTER JOIN ovst o ON o.vn = d1.vn
-    WHERE d1.vstdate = '${yesterdayDate}'`;
+  const response = await executeSqlViaApi(sql, config);
+  const rows = parseQueryResponse(response, (row) => ({
+    totalCases: Number(row['total_cases'] ?? 0),
+    totalVisits: Number(row['total_visits'] ?? 0),
+    totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
+  }));
 
-  try {
-    const [todayResponse, yesterdayResponse] = await Promise.all([
-      executeSqlViaApi(sql, config),
-      executeSqlViaApi(yesterdaySql, config),
-    ]);
-
-    const todayRows = parseQueryResponse(todayResponse, (row) => ({
-      totalCases: Number(row['total_cases'] ?? 0),
-      totalVisits: Number(row['total_visits'] ?? 0),
-      totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
-    }));
-
-    const yesterdayRows = parseQueryResponse(yesterdayResponse, (row) => ({
-      totalVisits: Number(row['total_visits'] ?? 0),
-      totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
-    }));
-
-    const today = todayRows.length > 0 ? todayRows[0] : { totalCases: 0, totalVisits: 0, totalIPDCases: 0 };
-    const day = yesterdayRows.length > 0 ? yesterdayRows[0] : { totalVisits: 0, totalIPDCases: 0 };
-
-    return {
-      totalCases: today.totalCases,
-      totalVisits: today.totalVisits,
-      totalIPDCases: today.totalIPDCases,
-      yesterdayVisits: day.totalVisits,
-      yesterdayIPDCases: day.totalIPDCases,
-    };
-  } catch {
-    // Fallback if yesterday's data fails
-    const response = await executeSqlViaApi(sql, config);
-    const rows = parseQueryResponse(response, (row) => ({
-      totalCases: Number(row['total_cases'] ?? 0),
-      totalVisits: Number(row['total_visits'] ?? 0),
-      totalIPDCases: Number(row['total_ipd_cases'] ?? 0),
-    }));
-
-    const today = rows.length > 0 ? rows[0] : { totalCases: 0, totalVisits: 0, totalIPDCases: 0 };
-    return {
-      ...today,
-      yesterdayVisits: 0,
-      yesterdayIPDCases: 0,
-    };
-  }
+  const today = rows.length > 0 ? rows[0] : { totalCases: 0, totalVisits: 0, totalIPDCases: 0 };
+  return {
+    ...today,
+    // Yesterday deltas are provided by getTodayDentistryMetrics() on the page.
+    yesterdayVisits: 0,
+    yesterdayIPDCases: 0,
+  };
 }
 
 /**
@@ -338,12 +397,11 @@ export async function getDentistrySummary(
   startDate: string,
   endDate: string,
 ): Promise<DentistrySummary> {
-  const [cases, visitTypeDistribution, insuranceDistribution, metrics, doctorPerformance] = await Promise.all([
+  const [cases, visitTypeDistribution, insuranceDistribution, metrics] = await Promise.all([
     getDentistryCases(config, startDate, endDate),
     getDentistryByVisitType(config, startDate, endDate),
     getDentistryByInsurance(config, startDate, endDate),
     getDentistrySummaryMetrics(config, startDate, endDate),
-    getDoctorPerformance(config, startDate, endDate),
   ]);
 
   return {
@@ -355,7 +413,8 @@ export async function getDentistrySummary(
     casesByVisitType: visitTypeDistribution,
     casesByInsurance: insuranceDistribution,
     cases,
-    doctorPerformance,
+    // Doctor performance is loaded by a dedicated query in the Dentistry page.
+    doctorPerformance: [],
   };
 }
 

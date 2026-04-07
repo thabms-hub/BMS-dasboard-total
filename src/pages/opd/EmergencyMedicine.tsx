@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Siren, RefreshCw, CalendarDays, Clock, AlertCircle, RotateCcw, ChevronLeft, ChevronRight, Activity, Stethoscope, Timer, ShieldCheck } from 'lucide-react'
+import { Siren, RefreshCw, CalendarDays, Clock, AlertCircle, RotateCcw, ChevronLeft, ChevronRight, Activity, Stethoscope, Timer, ShieldCheck, Info } from 'lucide-react'
 import {
   ResponsiveContainer,
   XAxis,
@@ -837,19 +837,31 @@ export default function EmergencyMedicine() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
+        <Card className="flex h-full flex-col">
           <CardHeader>
-            <CardTitle>จำนวนผู้ป่วยแยกตามกลุ่มอุบัติเหตุ</CardTitle>
-            <CardDescription>แสดงประเภทอุบัติเหตุ (er_accident_type)</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <span>จำนวนผู้ป่วยแยกตามกลุ่มอุบัติเหตุ</span>
+              <span className="group relative inline-flex">
+                <span
+                  className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary"
+                  aria-label="ข้อมูลการคำนวณ"
+                >
+                  <Info className="h-3 w-3" />
+                </span>
+                <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-72 -translate-x-1/2 rounded-md bg-popover p-2 text-xs text-popover-foreground opacity-0 shadow-md transition-opacity duration-75 group-hover:opacity-100">
+                  แสดงประเภทอุบัติเหตุจาก er_accident_type โดยนับจำนวนผู้ป่วยแต่ละกลุ่ม
+                </span>
+              </span>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="h-[420px]">
+          <CardContent className="flex-1 pt-0">
             {isAccidentTypeLoading ? (
               <Skeleton className="h-full w-full" />
             ) : !isConnected || isAccidentTypeError ? (
               renderRetryAction(executeAccidentType, accidentTypeError)
             ) : accidentTypeChartData.length > 0 ? (
-              <div className="flex h-full flex-col">
-                <div className="min-h-0 flex-1">
+              <div className="grid h-full min-h-0 content-center gap-3 md:grid-cols-[60%_40%] md:items-center">
+                <div className="h-[220px] min-h-0 sm:h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart margin={{ top: 12, right: 12, left: 12, bottom: 12 }}>
                       <Pie
@@ -876,16 +888,16 @@ export default function EmergencyMedicine() {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-2 max-h-24 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-1 gap-1 text-xs">
+                <div className="min-h-0 pr-1">
+                  <div className="max-h-[220px] space-y-2 overflow-y-auto sm:max-h-[240px]">
                     {accidentTypeChartData.map((item, index) => (
-                      <div key={item.accidentTypeName} className="flex items-center gap-2">
+                      <div key={item.accidentTypeName} className="flex items-center gap-2 text-sm">
                         <span
-                          className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+                          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: ACCIDENT_TYPE_COLORS[index % ACCIDENT_TYPE_COLORS.length] }}
                         />
-                        <span className="truncate text-muted-foreground">{item.accidentTypeName}</span>
-                        <span className="ml-auto shrink-0 font-medium tabular-nums">{item.patientCount.toLocaleString()}</span>
+                        <span className="min-w-0 flex-1 truncate text-muted-foreground" title={item.accidentTypeName}>{item.accidentTypeName}</span>
+                        <span className="shrink-0 font-semibold tabular-nums text-foreground">{item.patientCount.toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
@@ -897,7 +909,7 @@ export default function EmergencyMedicine() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="flex h-full flex-col">
           <CardHeader>
             <CardTitle>ผู้ป่วยตามความเร่งด่วน แยกเวร</CardTitle>
             <CardDescription>เทียบจำนวนผู้ป่วยตามเวร และระดับ Triage</CardDescription>
@@ -942,17 +954,29 @@ export default function EmergencyMedicine() {
 
         <Card>
           <CardHeader>
-            <CardTitle>ผลลัพธ์การดูแลผู้ป่วย</CardTitle>
-            <CardDescription>วิเคราะห์จากการลงข้อมูลโดยตรง เพื่อให้ได้สถิติการ Admit / Refer / เสียชีวิต</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <span>ผลลัพธ์การดูแลผู้ป่วย</span>
+              <span className="group relative inline-flex">
+                <span
+                  className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary"
+                  aria-label="ข้อมูลการคำนวณ"
+                >
+                  <Info className="h-3 w-3" />
+                </span>
+                <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-72 -translate-x-1/2 rounded-md bg-popover p-2 text-xs text-popover-foreground opacity-0 shadow-md transition-opacity duration-75 group-hover:opacity-100">
+                  วิเคราะห์จากการลงข้อมูลโดยตรง เพื่อให้ได้สถิติการ Admit / Refer / เสียชีวิต
+                </span>
+              </span>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="h-[420px]">
+          <CardContent className="flex-1 pt-0">
             {isDispositionLoading ? (
               <Skeleton className="h-full w-full" />
             ) : !isConnected || isDispositionError ? (
               renderRetryAction(executeDisposition, dispositionError)
             ) : dispositionChartData.length > 0 ? (
-              <div className="flex h-full flex-col">
-                <div className="min-h-0 flex-1">
+              <div className="grid h-full min-h-0 content-center gap-3 md:grid-cols-[60%_40%] md:items-center">
+                <div className="h-[220px] min-h-0 sm:h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart margin={{ top: 12, right: 12, left: 12, bottom: 12 }}>
                       <Pie
@@ -972,16 +996,16 @@ export default function EmergencyMedicine() {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-2 max-h-24 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-1 gap-1 text-xs">
+                <div className="min-h-0 pr-1">
+                  <div className="max-h-[220px] space-y-2 overflow-y-auto sm:max-h-[240px]">
                     {dispositionChartData.map((item, index) => (
-                      <div key={item.disposition} className="flex items-center gap-2">
+                      <div key={item.disposition} className="flex items-center gap-2 text-sm">
                         <span
-                          className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+                          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: DISPOSITION_COLORS[index % DISPOSITION_COLORS.length] }}
                         />
-                        <span className="truncate text-muted-foreground">{item.disposition}</span>
-                        <span className="ml-auto shrink-0 font-medium tabular-nums">{item.caseCount.toLocaleString()}</span>
+                        <span className="min-w-0 flex-1 truncate text-muted-foreground" title={item.disposition}>{item.disposition}</span>
+                        <span className="shrink-0 font-semibold tabular-nums text-foreground">{item.caseCount.toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
@@ -997,51 +1021,68 @@ export default function EmergencyMedicine() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <Card className="lg:col-span-7 xl:col-span-5">
           <CardHeader>
-            <CardTitle>อันดับหัตถการที่ทำบ่อย (ER)</CardTitle>
-            <CardDescription>เรียงจากจำนวนมากไปน้อย</CardDescription>
+            <CardTitle>ผู้ป่วยต่อแพทย์ (ER)</CardTitle>
+            <CardDescription>แสดงชื่อแพทย์และจำนวนผู้ป่วย</CardDescription>
           </CardHeader>
-          <CardContent className="min-h-80">
-            {isTopProceduresLoading ? (
+          <CardContent>
+            {isDoctorLoadLoading ? (
               <Skeleton className="h-64 w-full" />
-            ) : !isConnected || isTopProceduresError ? (
-              renderRetryAction(executeTopProcedures, topProceduresError)
-            ) : (topProceduresData?.length ?? 0) > 0 ? (
-              <ResponsiveContainer width="100%" height={Math.max((topProceduresData?.length ?? 0) * 42 + 20, 300)}>
-                <BarChart
-                  data={topProceduresData || []}
-                  layout="vertical"
-                  margin={{ top: 0, right: 60, left: 8, bottom: 0 }}
-                  barCategoryGap="25%"
-                >
-                  <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                  <YAxis
-                    dataKey="operCode"
-                    type="category"
-                    width={55}
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    cursor={false}
-                    formatter={((value: unknown, _name: unknown, props: { payload?: Record<string, unknown> }) => {
-                      const name = String(props?.payload?.operName ?? 'จำนวน')
-                      return [Number(value).toLocaleString(), name]
-                    }) as never}
-                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
-                  />
-                  <Bar dataKey="caseCount" fill="hsl(var(--chart-1))" radius={[0, 6, 6, 0]}>
-                      <LabelList
-                        dataKey="operName"
-                        position="insideLeft"
-                        formatter={(value: unknown) => truncateText(String(value ?? ''), 18)}
-                        style={{ fontSize: 11, fill: 'hsl(var(--primary-foreground))' }}
-                      />
-                    <LabelList dataKey="caseCount" position="right" style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            ) : !isConnected || isDoctorLoadError ? (
+              renderRetryAction(executeDoctorLoad, doctorLoadError)
+            ) : (doctorLoadData?.length ?? 0) > 0 ? (
+              <div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">อันดับ</TableHead>
+                      <TableHead>แพทย์</TableHead>
+                      <TableHead className="text-right">จำนวนผู้ป่วย</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pagedDoctorLoadData.map((item, index) => (
+                      <TableRow key={`${item.doctorCode}-${index}`}>
+                        <TableCell>{currentDoctorPage * DOCTOR_PAGE_SIZE + index + 1}</TableCell>
+                        <TableCell className="font-medium">{item.doctorName}</TableCell>
+                        <TableCell className="text-right">{item.patientCount.toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    แสดง {pagedDoctorLoadData.length > 0 ? currentDoctorPage * DOCTOR_PAGE_SIZE + 1 : 0} ถึง{' '}
+                    {Math.min((currentDoctorPage + 1) * DOCTOR_PAGE_SIZE, doctorCasesData.length)} จาก{' '}
+                    <span className="font-semibold">{doctorCasesData.length}</span> แพทย์
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePreviousDoctorPage}
+                      disabled={currentDoctorPage === 0}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      ย้อนกลับ
+                    </Button>
+                    <span className="text-xs text-muted-foreground px-2">
+                      หน้า {currentDoctorPage + 1} / {doctorTotalPages || 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextDoctorPage}
+                      disabled={currentDoctorPage >= doctorTotalPages - 1}
+                    >
+                      ถัดไป
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <EmptyState title="ไม่พบข้อมูลหัตถการ ER" description="ยังไม่มีข้อมูลหัตถการในช่วงวันที่ที่เลือก" />
+              <EmptyState title="ไม่พบข้อมูลแพทย์ ER" description="ยังไม่มีข้อมูลการลงรหัสแพทย์ในช่วงวันที่ที่เลือก" />
             )}
           </CardContent>
         </Card>
@@ -1093,15 +1134,18 @@ export default function EmergencyMedicine() {
             ) : (topCauseData?.length ?? 0) > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={topCauseData ?? []} outerRadius="72%">
-                  <PolarGrid stroke="hsl(var(--border))" />
+                  <PolarGrid radialLines stroke="hsl(var(--border))" strokeOpacity={0.7} />
                   <PolarAngleAxis
                     dataKey="causeName"
+                    axisLine={false}
+                    tickLine={false}
                     tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                     tickFormatter={(value) => truncateText(String(value), 14)}
                   />
                   <PolarRadiusAxis
                     allowDecimals={false}
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={false}
+                    axisLine={false}
                   />
                   <Tooltip
                     cursor={false}
@@ -1197,68 +1241,51 @@ export default function EmergencyMedicine() {
 
         <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>ผู้ป่วยต่อแพทย์ (ER)</CardTitle>
-            <CardDescription>แสดงชื่อแพทย์และจำนวนผู้ป่วย</CardDescription>
+            <CardTitle>อันดับหัตถการที่ทำบ่อย (ER)</CardTitle>
+            <CardDescription>เรียงจากจำนวนมากไปน้อย</CardDescription>
           </CardHeader>
-          <CardContent>
-            {isDoctorLoadLoading ? (
+          <CardContent className="min-h-80">
+            {isTopProceduresLoading ? (
               <Skeleton className="h-64 w-full" />
-            ) : !isConnected || isDoctorLoadError ? (
-              renderRetryAction(executeDoctorLoad, doctorLoadError)
-            ) : (doctorLoadData?.length ?? 0) > 0 ? (
-              <div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-16">อันดับ</TableHead>
-                      <TableHead>แพทย์</TableHead>
-                      <TableHead className="text-right">จำนวนผู้ป่วย</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pagedDoctorLoadData.map((item, index) => (
-                      <TableRow key={`${item.doctorCode}-${index}`}>
-                        <TableCell>{currentDoctorPage * DOCTOR_PAGE_SIZE + index + 1}</TableCell>
-                        <TableCell className="font-medium">{item.doctorName}</TableCell>
-                        <TableCell className="text-right">{item.patientCount.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <p className="text-xs text-muted-foreground">
-                    แสดง {pagedDoctorLoadData.length > 0 ? currentDoctorPage * DOCTOR_PAGE_SIZE + 1 : 0} ถึง{' '}
-                    {Math.min((currentDoctorPage + 1) * DOCTOR_PAGE_SIZE, doctorCasesData.length)} จาก{' '}
-                    <span className="font-semibold">{doctorCasesData.length}</span> แพทย์
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handlePreviousDoctorPage}
-                      disabled={currentDoctorPage === 0}
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      ย้อนกลับ
-                    </Button>
-                    <span className="text-xs text-muted-foreground px-2">
-                      หน้า {currentDoctorPage + 1} / {doctorTotalPages || 1}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleNextDoctorPage}
-                      disabled={currentDoctorPage >= doctorTotalPages - 1}
-                    >
-                      ถัดไป
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+            ) : !isConnected || isTopProceduresError ? (
+              renderRetryAction(executeTopProcedures, topProceduresError)
+            ) : (topProceduresData?.length ?? 0) > 0 ? (
+              <ResponsiveContainer width="100%" height={Math.max((topProceduresData?.length ?? 0) * 42 + 20, 300)}>
+                <BarChart
+                  data={topProceduresData || []}
+                  layout="vertical"
+                  margin={{ top: 0, right: 60, left: 8, bottom: 0 }}
+                  barCategoryGap="25%"
+                >
+                  <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    dataKey="operCode"
+                    type="category"
+                    width={55}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={false}
+                    formatter={((value: unknown, _name: unknown, props: { payload?: Record<string, unknown> }) => {
+                      const name = String(props?.payload?.operName ?? 'จำนวน')
+                      return [Number(value).toLocaleString(), name]
+                    }) as never}
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="caseCount" fill="hsl(var(--chart-1))" radius={[0, 6, 6, 0]}>
+                      <LabelList
+                        dataKey="operName"
+                        position="insideLeft"
+                        formatter={(value: unknown) => truncateText(String(value ?? ''), 18)}
+                        style={{ fontSize: 11, fill: 'hsl(var(--primary-foreground))' }}
+                      />
+                    <LabelList dataKey="caseCount" position="right" style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
-              <EmptyState title="ไม่พบข้อมูลแพทย์ ER" description="ยังไม่มีข้อมูลการลงรหัสแพทย์ในช่วงวันที่ที่เลือก" />
+              <EmptyState title="ไม่พบข้อมูลหัตถการ ER" description="ยังไม่มีข้อมูลหัตถการในช่วงวันที่ที่เลือก" />
             )}
           </CardContent>
         </Card>

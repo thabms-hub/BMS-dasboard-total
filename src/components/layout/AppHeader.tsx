@@ -39,11 +39,44 @@ export function AppHeader() {
       {/* Left: Hospital logo + title + current page                        */}
       {/* ----------------------------------------------------------------- */}
       <div className="flex items-center gap-3">
-        <img
-          src="/dashboard-logo.png"
-          alt="Hospital Logo"
-          className="h-9 w-9 rounded-lg object-contain"
-        />
+        {/* BMS-style inline SVG logo — no external file needed */}
+        <svg
+          width="36"
+          height="36"
+          viewBox="0 0 36 36"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="shrink-0 rounded-lg shadow-sm"
+          aria-label="BMS Logo"
+        >
+          {/* Background */}
+          <defs>
+            <linearGradient id="bmsLogoGrad" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#1e3a8a" />
+              <stop offset="100%" stopColor="#2563eb" />
+            </linearGradient>
+          </defs>
+          <rect width="36" height="36" rx="8" fill="url(#bmsLogoGrad)" />
+
+          {/* Medical cross */}
+          <rect x="15.5" y="7" width="5" height="15" rx="2" fill="white" fillOpacity="0.95" />
+          <rect x="8" y="13.5" width="20" height="5" rx="2" fill="white" fillOpacity="0.95" />
+
+          {/* BMS text */}
+          <text
+            x="18"
+            y="33"
+            textAnchor="middle"
+            fontSize="6"
+            fontWeight="700"
+            fontFamily="'Arial', sans-serif"
+            letterSpacing="0.8"
+            fill="white"
+            fillOpacity="0.85"
+          >
+            BMS
+          </text>
+        </svg>
         <div className="flex flex-col">
           <h1 className="text-base font-extrabold leading-tight tracking-tight text-white">
             {session?.userInfo.location || 'โรงพยาบาล'}

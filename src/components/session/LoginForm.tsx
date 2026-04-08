@@ -22,11 +22,41 @@ export function LoginForm({ onConnect, error, isConnecting }: LoginFormProps) {
       <div className="w-full max-w-md space-y-8">
         {/* Logo mark */}
         <div className="flex flex-col items-center gap-4">
-          <div className="signature-gradient flex h-14 w-14 items-center justify-center rounded-2xl shadow-md">
-            <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          </div>
+          {/* BMS-style inline SVG logo */}
+          <svg
+            width="56"
+            height="56"
+            viewBox="0 0 56 56"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="rounded-2xl shadow-md"
+            aria-label="BMS Logo"
+          >
+            <defs>
+              <linearGradient id="bmsLoginGrad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#0a2558" />
+                <stop offset="100%" stopColor="#2563eb" />
+              </linearGradient>
+            </defs>
+            <rect width="56" height="56" rx="14" fill="url(#bmsLoginGrad)" />
+            {/* Medical cross */}
+            <rect x="24" y="10" width="8" height="24" rx="3" fill="white" fillOpacity="0.95" />
+            <rect x="12" y="21" width="32" height="8" rx="3" fill="white" fillOpacity="0.95" />
+            {/* BMS text */}
+            <text
+              x="28"
+              y="51"
+              textAnchor="middle"
+              fontSize="9"
+              fontWeight="700"
+              fontFamily="'Arial', sans-serif"
+              letterSpacing="1.5"
+              fill="white"
+              fillOpacity="0.85"
+            >
+              BMS
+            </text>
+          </svg>
           <div className="text-center">
             <h1 className="bg-gradient-to-br from-[#0a2558] to-[#2563eb] bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">
               แดชบอร์ด BMS

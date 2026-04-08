@@ -13,7 +13,7 @@ BMS Session Demo Dashboard — a React/TypeScript web application that displays 
 
 ## Architecture
 
-### Session Flow
+### Session Flow(Critical)
 
 1. User arrives with `?bms-session-id=GUID` in URL (or from cookie/manual input)
 2. App calls `https://hosxp.net/phapi/PasteJSON?Action=GET&code=SESSION_ID` to retrieve session data
@@ -64,8 +64,34 @@ tests/
 
 **PostgreSQL**: Use single quotes for string literals (double quotes = identifiers)
 
-## Development Standards (Constitution v1.0.0)
+## HOSxP Tables Used
+- ovst — OPD visits
+- ipt — IPD admissions
+- patient — ข้อมูลผู้ป่วย
+- clinic — คลินิก
+- spclty — แผนก
+- opd_opi_finance_summary — รายได้ OPD
+- ipt_opi_finance_summary — รายได้ IPD
+[เพิ่ม table จริงที่ใช้]
 
+## Key Reference Files
+- `HOSxP_DATABASE_ANALYSIS.md` — HOSxP table structure และ field definitions
+
+## Date Format
+พ.ศ. (Buddhist Era) — ปี ค.ศ. + 543
+
+## Do Not Read (token waste)
+node_modules/, dist/, dist-electron/, coverage/, *.log, *.lock, .git/
+
+## Response Shape
+`{ MessageCode, Message, data: [{...}], field: [int], field_name: [str], record_count }`
+Field types: 1=Bool 2=Int 3=Float 4=DateTime 5=Time 6=String 7=Blob 9=String
+
+## Tech Stack
+TypeScript 5.x strict + React 19 + Vite 6 + Recharts 3.x + 
+shadcn/ui + Tailwind CSS v4 + TanStack Table v8 + date-fns
+
+## Development Standards (Constitution v1.0.0)
 - **TDD is non-negotiable**: write test → confirm fails → implement → confirm passes → refactor
 - **Four test layers required**: unit (80% coverage min), component, integration, API contract
 - **TypeScript strict mode** — no `any` without justification
@@ -75,7 +101,6 @@ tests/
 - **Performance** — API timeouts (30s session, 60s query), LIMIT clauses on SQL, lazy loading for non-critical routes
 
 ## Speckit Workflow
-
 This project uses the speckit system for structured development:
 - `/speckit.specify` — Create feature specifications
 - `/speckit.plan` — Create implementation plans

@@ -33,6 +33,13 @@ export function AppHeader() {
 
   const pageTitle = PAGE_TITLES[location.pathname] ?? '';
 
+  const logoGradient: Record<typeof colorTheme, [string, string]> = {
+    blue:   ['#0a2558', '#1e3a8a'],
+    green:  ['#14532d', '#166534'],
+    orange: ['#7c2d12', '#9a3412'],
+  };
+  const [gradStart, gradEnd] = logoGradient[colorTheme];
+
   return (
     <header className="signature-gradient sticky top-0 z-50 flex h-16 items-center justify-between px-6 shadow-md">
       {/* ----------------------------------------------------------------- */}
@@ -52,8 +59,8 @@ export function AppHeader() {
           {/* Background */}
           <defs>
             <linearGradient id="bmsLogoGrad" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stopColor="#1e3a8a" />
-              <stop offset="100%" stopColor="#2563eb" />
+              <stop offset="0%" stopColor={gradStart} />
+              <stop offset="100%" stopColor={gradEnd} />
             </linearGradient>
           </defs>
           <rect width="36" height="36" rx="8" fill="url(#bmsLogoGrad)" />

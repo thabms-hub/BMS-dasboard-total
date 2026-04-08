@@ -5,9 +5,19 @@
 **Status**: Draft
 **Input**: User description: "Create robust dashboard system that showcases bms-session-id usage to retrieve KPI data from HOSxP database, with dual database support (MySQL/PostgreSQL)"
 
+## Clarifications
+
+### Session 2026-04-08
+
+- Q: Do different user roles (nurse, doctor, administrator) see different data or have different access permissions? → A: All roles see identical aggregate dashboard — no role-based filtering
+- Q: Must the dashboard comply with any healthcare data privacy regulations? → A: HIPAA — requires audit trails, access controls, and encryption in transit
+- Q: Should query results be cached client-side to reduce redundant API calls? → A: Cache with short TTL (1–5 minutes) — stale-while-revalidate pattern
+- Q: What is the maximum configurable date range for trend/analytics queries? → A: 90 days
+- Q: Should the dashboard auto-refresh KPI data periodically without user action? → A: No auto-refresh — user refreshes manually via a refresh button
+
 ## Assumptions
 
-- Dashboard targets hospital staff (nurses, doctors, administrators) who access KPIs through a BMS session link
+- Dashboard targets hospital staff (nurses, doctors, administrators) who access KPIs through a BMS session link — all roles see identical aggregate views with no role-based filtering or conditional rendering
 - KPIs focus on aggregated, non-sensitive statistics (counts, trends, distributions) — no personally identifiable data displayed
 - The BMS Session API specification in `docs/BMS-SESSION-FOR-DEV.md` is the authoritative source for session flow and API contracts
 - Dashboard is a single-page application accessed via `?bms-session-id=GUID` URL parameter
@@ -50,7 +60,7 @@ A hospital administrator wants to see visit volume trends over time to identify 
 **Acceptance Scenarios**:
 
 1. **Given** a connected session, **When** the user navigates to the trends view, **Then** a line/bar chart displays daily OPD visit counts for the last 30 days by default, with each data point showing the date and count
-2. **Given** the trends view is displayed, **When** the user selects a custom date range using a date picker, **Then** the chart updates to show visit data for the selected range with a loading indicator during the query
+2. **Given** the trends view is displayed, **When** the user selects a custom date range using a date picker, **Then** the chart updates to show visit data for the selected range (maximum 90 days) with a loading indicator during the query; if the selected range exceeds 90 days, the date picker constrains the end date automatically
 3. **Given** the trends view, **When** the user clicks on a specific date in the chart, **Then** a detail panel shows the hourly distribution of visits for that day (visits per hour as a bar chart)
 4. **Given** the trends view, **When** data is loading, **Then** the chart area shows a skeleton/loading animation, and when data arrives, it transitions smoothly to the rendered chart
 
@@ -109,7 +119,7 @@ A hospital planner wants to see patient demographic breakdowns (age groups, gend
 - **FR-003**: System MUST provide a database-type-aware query layer that generates correct SQL syntax for both MySQL and PostgreSQL, abstracting differences in date functions (`CURDATE()` vs `CURRENT_DATE`, `DATE_FORMAT()` vs `TO_CHAR()`, `TIMESTAMPDIFF()` vs `EXTRACT()/AGE()`, `RAND()` vs `RANDOM()`), string quoting, and table structure queries (`DESCRIBE` vs `information_schema`)
 - **FR-004**: System MUST display today's KPI summary cards: OPD visit count (from `ovst`), IPD patient count (from `ipt` where `dchdate IS NULL`), ER visit count (from `er_regist`), and active department count (from `ovst` joined with `kskdepartment`)
 - **FR-005**: System MUST display a department workload table showing department names and visit counts for today, sorted by volume descending
-- **FR-006**: System MUST display visit trend charts for configurable date ranges with daily granularity
+- **FR-006**: System MUST display visit trend charts for configurable date ranges with daily granularity; maximum selectable range is 90 days, enforced by the date picker UI
 - **FR-007**: System MUST display hourly visit distribution for a selected day
 - **FR-008**: System MUST display department analytics with drill-down capability
 - **FR-009**: System MUST display doctor workload rankings by patient count
@@ -119,6 +129,12 @@ A hospital planner wants to see patient demographic breakdowns (age groups, gend
 - **FR-013**: System MUST handle session expiry by detecting error responses and prompting re-authentication with a new session ID
 - **FR-014**: System MUST use parameterized query inputs where supported and LIMIT clauses to prevent excessive data transfer
 - **FR-015**: System MUST provide loading states for every data-fetching operation and informative error messages for failures
+- **FR-016** *(Refresh)*: System MUST NOT auto-refresh data. Each dashboard view MUST include a manual refresh button that clears the cache for that view and re-fetches all queries, showing loading states during the operation
+- **FR-017** *(Caching)*: System MUST cache SQL query results in memory (React state / TanStack Query) with a 3-minute TTL using a stale-while-revalidate pattern. Cached data MUST NOT be written to localStorage or IndexedDB (per FR-019). Cache is cleared on session expiry or page reload
+- **FR-018** *(HIPAA)*: System MUST log every SQL query execution with timestamp, session user identity, and query type to a client-side audit log (sessionStorage), transmitted to no external service — ensuring traceability of data access
+- **FR-019** *(HIPAA)*: System MUST enforce HTTPS-only operation; all API calls to `bms_url` MUST use TLS. The app MUST warn and block if the `bms_url` returned by session is non-HTTPS
+- **FR-020** *(HIPAA)*: System MUST NOT cache raw query result data in localStorage or cookies beyond the session lifetime. Only session metadata (session ID, user info) may persist in cookies (7-day expiry per FR-001)
+- **FR-021** *(HIPAA)*: System MUST display only aggregate statistics — no individual patient identifiers (name, HN, IC number, address) may appear in any chart, table, or tooltip
 
 ### Key Entities
 
@@ -143,3 +159,5 @@ A hospital planner wants to see patient demographic breakdowns (age groups, gend
 - **SC-006**: Session expiry is detected and communicated to the user within one failed query, with a clear path to reconnect
 - **SC-007**: 100% of KPI queries complete within 10 seconds on typical HOSxP databases
 - **SC-008**: All four test layers pass: unit tests for query builders and services, component tests for UI elements, integration tests for session-to-dashboard flow, and API contract tests for BMS Session API responses
+- **SC-009** *(HIPAA)*: Every SQL query execution generates an audit log entry containing timestamp, user identity, and query type — verified by unit tests on the audit logging service
+- **SC-010** *(HIPAA)*: Application blocks and warns when `bms_url` is non-HTTPS, verified by a unit test that mocks an HTTP endpoint response

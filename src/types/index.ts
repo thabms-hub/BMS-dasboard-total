@@ -565,3 +565,145 @@ export interface AppointmentTopClinicItem {
   noShowAppointments: number
   noShowRate: number
 }
+
+// ---------------------------------------------------------------------------
+// Lab Dashboard data models
+// ---------------------------------------------------------------------------
+
+export interface LabOrderSummary {
+  totalOrders: number
+  receivedOrders: number
+  reportedOrders: number
+  outlabCount: number
+}
+
+export interface LabOrderByPriority {
+  date: string
+  priorityName: string
+  orderCount: number
+}
+
+export interface LabItemTop {
+  labItemsCode: string
+  labItemsName: string
+  orderCount: number
+}
+
+export interface LabGroupTop {
+  groupName: string
+  orderCount: number
+}
+
+export interface LabOrderByLocation {
+  date: string
+  locationName: string
+  orderCount: number
+}
+
+export interface LabOrderByDepartment {
+  date: string
+  deptName: string
+  orderCount: number
+}
+
+export interface LabOrderVsPatient {
+  totalOrders: number
+  uniquePatients: number
+}
+
+export interface LabOrderVsPatientByType {
+  patientType: 'IPD' | 'OPD'
+  patientCount: number
+  orderCount: number
+}
+
+export interface LabRejectedRadarItem {
+  reason: string
+  rejectedCount: number
+}
+
+// =============================================================================
+// X-Ray Dashboard Types
+// =============================================================================
+
+export interface XraySummary {
+  totalOrders: number
+  acceptedOrders: number
+  examinedOrders: number
+  confirmedReadOrders: number
+}
+
+export interface XrayItemTop {
+  xrayItemsCode: string
+  xrayItemsName: string
+  orderCount: number
+}
+
+export interface XrayByDept {
+  date: string
+  deptName: string
+  orderCount: number
+}
+
+export interface XrayByWard {
+  date: string
+  wardName: string
+  orderCount: number
+}
+
+export interface XrayDoctorRead {
+  doctorName: string
+  readCount: number
+}
+
+export interface XrayOpdOrder {
+  date: string
+  orderCount: number
+  patientCount: number
+}
+
+export interface XrayBySex {
+  sexLabel: string
+  patientCount: number
+}
+
+export interface XrayByUrgency {
+  urgencyLabel: string
+  orderCount: number
+}
+
+export interface XrayMonthlyOrder {
+  monthKey: string
+  orderCount: number
+}
+
+// =============================================================================
+// OR Dashboard Types
+// =============================================================================
+
+export interface OrSummary {
+  pendingSetCount: number
+  totalPatients: number
+  totalSurgeries: number
+  totalAmount: number
+}
+
+export interface OrTopOperationItem {
+  operationName: string
+  surgeryCount: number
+}
+
+export interface OrUrgencyItem {
+  urgencyName: string
+  surgeryCount: number
+}
+
+export interface OrOperationTypeItem {
+  operationTypeName: string
+  surgeryCount: number
+}
+
+export interface OrStatusItem {
+  statusName: string
+  surgeryCount: number
+}

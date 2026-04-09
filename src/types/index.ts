@@ -340,6 +340,55 @@ export interface OpdExamOperationSetSummary {
   operationOrderCount: number
 }
 
+export interface OpdExamDoctorCertTypeItem {
+  doctorCertTypeName: string
+  certCount: number
+}
+
+export interface OpdExamDeformedCertSummary {
+  deformedCertCount: number
+}
+
+export interface OpdExamTopKpiSummary {
+  totalPatientsCurrent: number
+  totalPatientsPrevious: number
+  avgWaitMinutesCurrent: number
+  avgWaitMinutesPrevious: number
+  referredCurrent: number
+  referredPrevious: number
+}
+
+export interface OpdExamWeekdayHourItem {
+  weekdayIndex: number
+  hourOfDay: number
+  patientCount: number
+}
+
+export interface OpdExamReferralSummary {
+  totalReferrals: number
+  uniquePatients: number
+}
+
+export interface OpdExamReferralBreakdownItem {
+  label: string
+  referCount: number
+  breakdownType: 'destination' | 'reason'
+}
+
+export interface OpdExamSlaSummary {
+  withinTargetCount: number
+  missedTargetCount: number
+  totalCases: number
+  withinTargetPercent: number
+}
+
+export interface OpdExamDispositionSummary {
+  admitCount: number
+  referCount: number
+  homeCount: number
+  totalCount: number
+}
+
 export interface OpdExamWaitTimeItem {
   spcltyName: string
   waitDoctorAvg: string   // เฉลี่ยเวลารอหลัง screen ถึงเริ่มพบแพทย์ (HH:MM:SS)

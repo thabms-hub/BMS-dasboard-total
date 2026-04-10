@@ -800,10 +800,8 @@ export default function OpdExamRoom() {
 
         <div className="col-span-4 h-full">
           <Card className="card-shadow h-full">
-            <CardHeader className="flex flex-row items-start justify-between space-y-0">
-              <div>
-                {renderCardTitleWithTooltip('10 อันดับโรค Refer Out', 'เรียงตามจำนวนครั้งที่ส่งต่อออกมากที่สุด')}
-            </div>
+            <CardHeader className="pb-3">
+              {renderCardTitleWithTooltip('10 อันดับโรค Refer Out', 'เรียงตามจำนวนครั้งที่ส่งต่อออกมากที่สุด')}
           </CardHeader>
           <CardContent>
             {isReferOutLoading ? (
@@ -922,15 +920,35 @@ export default function OpdExamRoom() {
       </Card>
 
           <Card className="card-shadow h-full">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
               <CardTitle className="flex items-center gap-2">
                 <Timer className="h-4 w-4 text-muted-foreground" />
                 เปรียบเทียบระยะเวลารอคอยเฉลี่ยตามสาขา
               </CardTitle>
+              <div className="flex flex-wrap justify-end gap-x-3 gap-y-1">
+                {([
+                  { key: 'waitDoctorAvgMinutes', label: 'รอพบแพทย์ (เฉลี่ย)', color: secondaryChartColor },
+                  { key: 'doctorTimeAvgMinutes', label: 'เวลาพบแพทย์ (เฉลี่ย)', color: tertiaryChartColor },
+                ] as const).map((item) => {
+                  const isVisible = visibleWaitSeries[item.key]
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => handleWaitLegendClick(item.key)}
+                      className="flex items-center gap-1.5 transition-opacity hover:opacity-80"
+                      style={{ opacity: isVisible ? 1 : 0.35, cursor: 'pointer' }}
+                    >
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: item.color }} />
+                      <span className="text-xs leading-tight">{item.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </CardHeader>
         <CardContent>
           {isWaitTimeLoading ? (
-            <Skeleton className="h-[260px] w-full" />
+            <Skeleton className="h-[240px] w-full" />
           ) : isWaitTimeError ? (
             <p className="flex items-center gap-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
@@ -944,7 +962,7 @@ export default function OpdExamRoom() {
             />
           ) : (
             <div>
-              <div className="h-[320px]">
+              <div className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={waitTimeChartData} margin={{ left: 4, right: 12, top: 6, bottom: 64 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
@@ -988,28 +1006,8 @@ export default function OpdExamRoom() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 px-1">
-                {([
-                  { key: 'waitDoctorAvgMinutes', label: 'รอพบแพทย์ (เฉลี่ย)', color: secondaryChartColor },
-                  { key: 'doctorTimeAvgMinutes', label: 'เวลาพบแพทย์ (เฉลี่ย)', color: tertiaryChartColor },
-                ] as const).map((item) => {
-                  const isVisible = visibleWaitSeries[item.key]
-                  return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => handleWaitLegendClick(item.key)}
-                      className="flex items-center gap-1.5 transition-opacity hover:opacity-80"
-                      style={{ opacity: isVisible ? 1 : 0.35, cursor: 'pointer' }}
-                    >
-                      <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-xs leading-tight">{item.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            
             </div>
+
           )}
         </CardContent>
           </Card>

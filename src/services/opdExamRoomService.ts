@@ -399,10 +399,32 @@ export async function getOpdExamReferralBreakdown(
   const sqlCandidates: Array<{ sql: string; breakdownType: 'destination' | 'reason' }> = [
     {
       sql:
-        `SELECT COALESCE(refer_hospname, refer_hospcode, 'ไม่ระบุปลายทาง') as label, COUNT(*) as refer_count ` +
-        `FROM referout ` +
-        `WHERE refer_date >= '${startDate}' AND refer_date <= '${endDate}' ` +
-        `GROUP BY label ` +
+        `SELECT COALESCE(h.name, r.refer_hospname, r.refer_hospcode, 'ไม่ระบุปลายทาง') as label, COUNT(*) as refer_count ` +
+        `FROM referout r ` +
+        `LEFT JOIN hospcode h ON h.hospcode = r.refer_hospcode ` +
+        `WHERE r.refer_date >= '${startDate}' AND r.refer_date <= '${endDate}' ` +
+        `GROUP BY COALESCE(h.name, r.refer_hospname, r.refer_hospcode, 'ไม่ระบุปลายทาง') ` +
+        `ORDER BY refer_count DESC ` +
+        `LIMIT 10`,
+      breakdownType: 'destination',
+    },
+    {
+      sql:
+        `SELECT COALESCE(h.name, r.refer_hospcode, 'ไม่ระบุปลายทาง') as label, COUNT(*) as refer_count ` +
+        `FROM referout r ` +
+        `LEFT JOIN hospcode h ON h.hospcode = r.refer_hospcode ` +
+        `WHERE r.refer_date >= '${startDate}' AND r.refer_date <= '${endDate}' ` +
+        `GROUP BY COALESCE(h.name, r.refer_hospcode, 'ไม่ระบุปลายทาง') ` +
+        `ORDER BY refer_count DESC ` +
+        `LIMIT 10`,
+      breakdownType: 'destination',
+    },
+    {
+      sql:
+        `SELECT COALESCE(r.refer_hospname, r.refer_hospcode, 'ไม่ระบุปลายทาง') as label, COUNT(*) as refer_count ` +
+        `FROM referout r ` +
+        `WHERE r.refer_date >= '${startDate}' AND r.refer_date <= '${endDate}' ` +
+        `GROUP BY COALESCE(r.refer_hospname, r.refer_hospcode, 'ไม่ระบุปลายทาง') ` +
         `ORDER BY refer_count DESC ` +
         `LIMIT 10`,
       breakdownType: 'destination',

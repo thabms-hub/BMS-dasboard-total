@@ -707,3 +707,60 @@ export interface OrStatusItem {
   statusName: string
   surgeryCount: number
 }
+
+export interface OrRoomUsageByShiftItem {
+  roomName: string
+  shiftName: string
+  usageCount: number
+}
+
+export interface OrAnesthesiaTypeItem {
+  anesName: string
+  caseCount: number
+}
+
+export interface OrOperationDurationItem {
+  operationName: string
+  avgDurationMinutes: number
+  caseCount: number
+}
+
+// =============================================================================
+// Pharmacy OPD Dashboard Types
+// =============================================================================
+
+export interface PharmacyOpdSummary {
+  totalPatients: number
+  totalAmount: number
+  totalDrugItemCount: number
+  prescriptionCount: number
+  checkedCount: number
+  preparedCount: number
+  dispensedCount: number
+}
+
+export interface PharmacyTopUsageItem {
+  itemCode: string
+  itemName: string
+  itemCount: number
+  totalQty: number
+  totalAmount: number
+}
+
+export interface PharmacyPatientCompare {
+  hnCount: number
+  vnCount: number
+  drugCount: number
+}
+
+export interface PharmacyPaymentByType {
+  paymentType: string
+  totalAmount: number
+}
+
+export interface PharmacyTopDoctorItem {
+  doctorName: string
+  visitCount: number
+  itemCount: number
+  totalAmount: number
+}
